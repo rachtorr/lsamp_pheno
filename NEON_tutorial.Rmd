@@ -1,0 +1,70 @@
+---
+title: "NEON forecasting challenge"
+author: "rachel torres"
+date: "2025-01-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(phenor)
+library(lubridate)
+```
+
+## NEON
+
+[code from this webste](https://projects.ecoforecast.org/neon4cast-ci/targets.html)
+
+select a site where phenology data is available (1 in table)
+
+```{r data}
+url <- "https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/phenology-targets.csv.gz"
+
+# get data frame from website 
+phenology_targets <- read_csv(url, show_col_types = FALSE)
+  
+# filter by site id 
+abby <- phenology_targets %>% filter(site_id=="ABBY" | site_id=="SJER")
+  
+ggplot(abby) + geom_point(aes(x=datetime, y=observation, col=site_id)) + facet_grid('variable')
+
+# plots to make to explore - time series 
+# smooth time series 
+# monthly averages 
+# monthly values with year by color 
+# daily values by year 
+# average daily values 
+
+```
+
+## Including Plots
+```{r example}
+
+# example plot that combines filter, mutating, aggregating 
+
+abby %>% 
+  # filter by site id 
+  filter(site_id=="ABBY" & 
+           # filter by variable - only gcc90
+           variable=="gcc_90") %>%   
+  # use lubridate functions to get different time steps
+  mutate(month = month(datetime),
+         year=year(datetime),
+         yd=yday(datetime)) %>% 
+  # summarize 
+  group_by(yd, year) %>% 
+  summarize(gcc90 = mean(observation)) %>% 
+  # plot 
+  ggplot(aes(x=yd, 
+             y=gcc90, 
+             col=as.factor(year))) + 
+  geom_line()
+
+
+
+```
+
+Other things to explore 
+
+- compare two different sites in different climates 
