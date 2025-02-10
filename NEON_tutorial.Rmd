@@ -5,6 +5,7 @@ date: "2025-01-22"
 output: html_document
 ---
 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
@@ -12,38 +13,58 @@ library(phenor)
 library(lubridate)
 ```
 
-## NEON
+## NEON phenology data viz 
 
-[code from this webste](https://projects.ecoforecast.org/neon4cast-ci/targets.html)
+[steps to code are from this webste](https://projects.ecoforecast.org/neon4cast-ci/targets.html)
 
-select a site where phenology data is available (1 in table)
+Description of data:
+
+**gcc_90** - P1D - Green chromatic coordinate is the ratio of the green digital number to the sum of the red, green, blue digital numbers from a digital camera.	
+Horizon: 30 days	
+Latency: ~ 2 days
+
+**rcc_90** -	P1D	- Red chromatic coordinate is the ratio of the Red digital number to the sum of the red, green, blue digital numbers from a digital camera.	
+Horizon: 30 days	
+Latency: ~ 2 days
+
+
+First, select a site where phenology data is available ([see table](https://projects.ecoforecast.org/neon4cast-ci/targets.html) where phenology is marked 1)
+
+In example below I filter by ABBY (Abby Road in Oregon) and SJER (San Joaquin Experimental Range in California)
 
 ```{r data}
+
+#set download url 
 url <- "https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/phenology-targets.csv.gz"
 
 # get data frame from website 
 phenology_targets <- read_csv(url, show_col_types = FALSE)
   
 # filter by site id 
-abby <- phenology_targets %>% filter(site_id=="ABBY" | site_id=="SJER")
-  
-ggplot(abby) + geom_point(aes(x=datetime, y=observation, col=site_id)) + facet_grid('variable')
+sites <- phenology_targets %>% filter(site_id=="ABBY" | site_id=="SJER")
 
-# plots to make to explore - time series 
-# smooth time series 
-# monthly averages 
-# monthly values with year by color 
-# daily values by year 
-# average daily values 
+# plot time series 
+ggplot(sites) + 
+  geom_point(aes(x=datetime, y=observation, col=site_id)) +
+  facet_grid('variable')
 
 ```
 
-## Including Plots
+Other ideas to explore in visualization:
+
+- plots to make to explore - time series 
+- smooth time series 
+- monthly averages 
+- monthly values with year by color 
+- daily values by year 
+- average daily values 
+
+## Example Plot
 ```{r example}
 
 # example plot that combines filter, mutating, aggregating 
 
-abby %>% 
+sites %>% 
   # filter by site id 
   filter(site_id=="ABBY" & 
            # filter by variable - only gcc90
@@ -65,6 +86,4 @@ abby %>%
 
 ```
 
-Other things to explore 
-
-- compare two different sites in different climates 
+Continue your own code below - what patterns can you find? 
