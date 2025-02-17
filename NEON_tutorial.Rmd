@@ -87,3 +87,87 @@ sites %>%
 ```
 
 Continue your own code below - what patterns can you find? 
+
+## Let's look at climate data for the NEON site
+
+We are going to load more data using the `neonUtilities` R package - see examples [here](https://www.neonscience.org/resources/learning-hub/tutorials/neondatastackr)
+
+We want to get air temperature values, which are available as 1 and 30 minute average from triple aspirated observations, and have an ID of DP1.00003.001.
+
+```{r neon_utils, eval=F}
+# run this first to install 
+#install.packages("neonUtilities")
+
+# load package 
+library(neonUtilities)
+
+# get the start and end dates for the SJER site 
+start = head(sites %>% filter(site_id=="SJER") %>% select(datetime))[1,] 
+end = tail(sites %>% filter(site_id=="SJER") %>% select(datetime))[6,] 
+
+# download the triple aspirated temperature files - for site SJER only to start - check your console, this may take a minute 
+triptemp <- loadByProduct(dpID="DP1.00003.001", 
+                          site=c("SJER"),
+                          startdate=format(start$datetime, "%Y-%m"), 
+                          enddate=format(end$datetime, "%Y-%m"))
+# the format of this download is a list of 7 that contains metadata and data frames for 1 minute observations (TAAT_1min) and 30 minute (TAAT_30min)
+
+# get daily min, max, and mean temps 
+minute_daily_avg = triptemp$TAAT_1min %>% 
+  mutate(date = date(startDateTime)) %>% 
+  group_by(date) %>% 
+  summarize(tmin = min(tempTripleMean),
+            tmax = max(tempTripleMean),
+            tmean = mean(tempTripleMean)) %>% 
+  mutate(tmean2 = (tmin+tmax)/2)
+
+
+ggplot(minute_daily_avg, 
+       aes(x=date, y=tmean)) +
+  geom_point() +
+  geom_point(aes(x=date, y=tmin, col="tmin")) + 
+  geom_point(aes(x=date, y=tmax, col="tmax"))
+
+# save dataframe to computer so don't have to download again 
+saveRDS(minute_daily_avg, "SJER_trip_temp_NEON.Rds")
+```
+
+## Get Accumulated growing degree days 
+```{r agdd}
+
+minute_daily_avg <- readRDS("SJER_trip_temp_NEON.Rds")
+
+
+# calculate gdd as the mean over the threshold (because we are working in celsius, the threshold is 0 or 32F, we only need the mean)
+
+gdd = minute_daily_avg %>% 
+  mutate(tmean = (tmin+tmax)/2,
+         year = year(date),
+         doy = yday(date)) %>% 
+  select(year, doy, tmean) %>% 
+  filter(year>2022) %>% 
+  fill(tmean) # not the best strategy but will work for now - fills NA values with previous value 
+
+# plot as avg temperature (gdd)
+ggplot(gdd, aes(x=doy, y=tmean, col=as.factor(year))) +
+  geom_point(alpha=0.5) + 
+  geom_smooth() +
+  labs(x="day of year", y="tmean (degC)", col="year") + 
+  theme_bw()
+
+# create a new column for cumulative values, starting at 0 for each year 
+# cumsum is a base function that takes a vector and produces a new vector with cumulative values. try putting ?cumsum into your console to learn more, or visualize an example by putting `cumsum(c(1,2,3,4))` into your console
+gdd <- gdd %>% 
+  group_by(year) %>% 
+  mutate(agdd = cumsum(tmean))
+
+# plot agdd 
+ggplot(gdd, aes(x=doy, y=agdd, col=as.factor(year))) + 
+  geom_hline(aes(yintercept=1000), linetype="dashed") + 
+  geom_line(linewidth=1) + 
+  labs(x="day of year", y="AGDD (base=0C)", col="year") +
+  theme_bw() + theme(legend.position = "inside",
+                     legend.position.inside = c(0.15, 0.8))
+
+```
+
