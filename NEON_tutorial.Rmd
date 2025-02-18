@@ -9,7 +9,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
-library(phenor)
+# library(phenor) this is for later 
 library(lubridate)
 ```
 
@@ -83,7 +83,9 @@ sites %>%
   geom_line()
 
 
-
+# to use only 1 site, use the filter function 
+# saving as new data frame 'site_dates'
+site_dates = sites %>% filter(site_id=="SJER")
 ```
 
 Continue your own code below - what patterns can you find? 
@@ -94,6 +96,14 @@ We are going to load more data using the `neonUtilities` R package - see example
 
 We want to get air temperature values, which are available as 1 and 30 minute average from triple aspirated observations, and have an ID of DP1.00003.001.
 
+See a full list of data products [here](https://data.neonscience.org/data-products/explore)
+
+other IDs you might be interested 
+
+- precipitation - DP1.00006.001
+- shortwave radiation - DP1.00014.001
+- photosynthetically active radiation (PAR) - DP1.00024.001
+
 ```{r neon_utils, eval=F}
 # run this first to install 
 #install.packages("neonUtilities")
@@ -102,14 +112,22 @@ We want to get air temperature values, which are available as 1 and 30 minute av
 library(neonUtilities)
 
 # get the start and end dates for the SJER site 
-start = head(sites %>% filter(site_id=="SJER") %>% select(datetime))[1,] 
-end = tail(sites %>% filter(site_id=="SJER") %>% select(datetime))[6,] 
+# first get the date column for only SJER 
+site_dates = sites %>% filter(site_id=="SJER")
+# the functions below select the first and last date entry in the datetime column, then format to Year-month 
+start = format(site_dates$datetime[1], "%Y-%m")
+end = format(site_dates$datetime[nrow(dates)], "%Y-%m")
+
+# alternatively to above, you could hand select your start and end times, format has to be Year-month 
+start = "2017-01"
+end = "2025-01"
 
 # download the triple aspirated temperature files - for site SJER only to start - check your console, this may take a minute 
-triptemp <- loadByProduct(dpID="DP1.00003.001", 
+# to download a different clim variable, change dpID
+triptemp <- loadByProduct(dpID=c("DP1.00003.001"),
                           site=c("SJER"),
-                          startdate=format(start$datetime, "%Y-%m"), 
-                          enddate=format(end$datetime, "%Y-%m"))
+                          startdate=start, 
+                          enddate=end)
 # the format of this download is a list of 7 that contains metadata and data frames for 1 minute observations (TAAT_1min) and 30 minute (TAAT_30min)
 
 # get daily min, max, and mean temps 
@@ -118,9 +136,7 @@ minute_daily_avg = triptemp$TAAT_1min %>%
   group_by(date) %>% 
   summarize(tmin = min(tempTripleMean),
             tmax = max(tempTripleMean),
-            tmean = mean(tempTripleMean)) %>% 
-  mutate(tmean2 = (tmin+tmax)/2)
-
+            tmean = mean(tempTripleMean)) 
 
 ggplot(minute_daily_avg, 
        aes(x=date, y=tmean)) +
@@ -168,6 +184,44 @@ ggplot(gdd, aes(x=doy, y=agdd, col=as.factor(year))) +
   labs(x="day of year", y="AGDD (base=0C)", col="year") +
   theme_bw() + theme(legend.position = "inside",
                      legend.position.inside = c(0.15, 0.8))
+
+```
+
+
+## Combine phenology and climate data 
+
+Continuing with temperature data, going to create a data frame that includes columns for dates, gcc90, and temperature, then will do example plot 
+
+To do this, we will use a join function from the `dplyr` package. Read more [here](https://dplyr.tidyverse.org/reference/mutate-joins.html).
+
+I am continuing to look at the SJER site only, where I downloaded the climate data. 
+
+```{r joins}
+
+# to join, we need one column to have the same identifier, in this case the date needs to be in the same format and column name 
+
+# changing format of date in site_dates to match date in minute_daily_avg 
+site_dates$date = ymd(site_dates$datetime)
+
+# inner_join maintains all columns and joins by dates 
+phen_temps = inner_join(site_dates, minute_daily_avg, by="date")
+
+# preview new dataframe 
+head(phen_temps)
+
+summary(phen_temps)
+
+# add other columns for different temporal groupings 
+phen_temps <- phen_temps %>% 
+  mutate(year=year(date),
+         month=month(date),
+         doy=yday(date))
+
+# start thinking about how to plot to explore patterns 
+phen_temps %>% 
+  filter(variable=="gcc_90") %>% 
+  ggplot(aes(x=tmin, y=observation, col=as.factor(month))) + geom_point() +
+  labs(x="tmin (C)", y="gcc 90")
 
 ```
 
