@@ -124,11 +124,16 @@ end = "2025-01"
 
 # download the triple aspirated temperature files - for site SJER only to start - check your console, this may take a minute 
 # to download a different clim variable, change dpID
-triptemp <- loadByProduct(dpID=c("DP1.00003.001"),
-                          site=c("SJER"),
-                          startdate=start, 
-                          enddate=end)
+# triptemp <- loadByProduct(dpID=c("DP1.00003.001"),
+#                           site=c("SJER"),
+#                           startdate=start, 
+#                           enddate=end)
 # the format of this download is a list of 7 that contains metadata and data frames for 1 minute observations (TAAT_1min) and 30 minute (TAAT_30min)
+
+phen <- loadByProduct(dpID=c("DP1.00033.001"),
+                          site=c("SJER"),
+                          startdate="2018-01", 
+                          enddate="2018-12")
 
 # get daily min, max, and mean temps 
 minute_daily_avg = triptemp$TAAT_1min %>% 
@@ -151,7 +156,7 @@ saveRDS(minute_daily_avg, "SJER_trip_temp_NEON.Rds")
 ## Get Accumulated growing degree days 
 ```{r agdd}
 
-minute_daily_avg <- readRDS("SJER_trip_temp_NEON.Rds")
+minute_daily_avg <- readRDS("../data/SJER_trip_temp_NEON.Rds")
 
 
 # calculate gdd as the mean over the threshold (because we are working in celsius, the threshold is 0 or 32F, we only need the mean)
@@ -223,5 +228,53 @@ phen_temps %>%
   ggplot(aes(x=tmin, y=observation, col=as.factor(month))) + geom_point() +
   labs(x="tmin (C)", y="gcc 90")
 
+# compare gcc with spring temps 
+phen_temps %>% 
+  filter(variable=="gcc_90") %>%
+  ggplot(aes(x=doy, y=observation, col=tmin)) + geom_point() +
+  labs(x="day of year", y="gcc 90")
+  
+
 ```
+
+## Using a model 
+
+fable and fable tools package
+
+```{r fab}
+# note: you may need to install before running library - uncomment below and run these lines 
+# install.packages('fable')
+# installed.packages('fabletools')
+
+library(fable)
+library(fabletools)
+
+gcc_df <- phen_temps %>% 
+   filter(variable=="gcc_90")
+
+temp_lm <- tsibble(gcc_df, index='date') %>% 
+  fabletools::model(
+    m_tmin = fable::TSLM(observation ~ tmin),
+    m_tmax = fable::TSLM(observation ~ tmax),
+    m_t_doy = fable::TSLM(observation ~ tmin+doy)
+  )
+
+fabletools::report(temp_lm) %>%
+  select(`.model`, AIC)
+# lowest value is the model with temperature only but it is very small difference 
+
+
+## ----plot tslm modeled vs observed, fig.height = 6, fig.width = 12, fig.align = "center", fig.cap="Figure: TSLM predictions of beetle abundances at OSBS compared against observed data"----
+# visualize model fit
+# augment reformats model output into a tsibble for easier plotting
+fabletools::augment(temp_lm) %>%
+  ggplot(aes(x = date)) +
+  geom_line(aes(y = observation, lty = "Obs"), color = "dark gray") +
+  geom_line(aes(y = .fitted, color = .model, lty = "Model")) +
+  facet_grid(.model ~ .) +
+  theme_bw()
+
+
+```
+
 

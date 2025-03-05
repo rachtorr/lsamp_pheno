@@ -1,0 +1,303 @@
+---
+title: "pheno"
+author: "rachel torres"
+date: "2025-01-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#install.packages("devtools")
+#if(!require(remotes)){install.packages("remotes")}
+#remotes::install_github("bluegreen-labs/phenor@v1.3.1")
+#install.packages("phenocamr")
+#install.packages("maps")
+
+library(phenor)
+library(phenocamr)
+#library(maps) # not using spatial yet 
+#library(raster)
+library(tidyverse)
+```
+
+## tutorial - NEON pheno packages 
+
+https://www.neonscience.org/resources/learning-hub/tutorials/phenocam-phenor-modeling
+
+For the latest version, install `phenor` from here: https://github.com/bluegreen-labs/phenor (be sure to update all packages for installation to work, and install GenSA)
+
+See a map of phenocam sites [here](https://phenocam.nau.edu/webcam/network/map/)
+
+
+```{r download}
+
+# can see rois to select where to download(regions of interest)
+
+list_rois() %>% 
+  filter(site=="bartlettir")
+# roi id 1000 has been around the longest with least amount of missing data, makese sense to use as example 
+
+# example from website: Bartlett NH
+phenocamr::download_phenocam(
+  frequency = 3,
+  veg_type = "DB", #DB for decid broadleaf, EN for evergreen, default is ALL
+  roi_id = 1000,
+  site = "bartlettir",
+  phenophase = TRUE,
+  out_dir = "." # saves in current working dir
+  )
+
+# evergreens in del norte county (close to north humboldt)
+# phenocamr::download_phenocam(
+#   frequency = 3,
+#   veg_type = "EN", #DB for decid broadlead, EN for evergreen, default is ALL 
+#   roi_id = 1000,
+#   site = "delnortecounty1",
+#   phenophase = TRUE,
+#   out_dir = "." # saves in current working dir
+#   )
+
+# shrubs in crownpoint NM, NE of Gallup at Navajo Technical University 
+# phenocamr::download_phenocam(
+#  frequency = 3,
+#  roi_id = 1000,
+#  site = "ntupinyongarden",
+#  phenophase = TRUE,
+#  out_dir = "." # saves in current working dir
+#  )
+
+```
+
+A new file should be downloaded in your folder: bartlettir_DB_1000_3day.csv
+
+The data is set up as a `phenocamr` type, which includes a list with metadata and timeseries data
+
+## following steps from phenocamr vignette 
+
+[see website here](https://bluegreen-labs.github.io/phenocamr/articles/phenocamr-vignette.html)
+
+source has clear steps, but uses base plotting, below I create same plot with ggplot 
+
+```{r phenocamr}
+# read as phenocamr type 
+df = read_phenocam("bartlettir_DB_1000_3day.csv")
+
+df <- expand_phenocam(df) # expand every 3 day to every day 
+
+df <- detect_outliers(df) # detect outliers
+
+df <- smooth_ts(df) # smooth data using AIC 
+
+phenology_dates <- phenophases(df, internal = TRUE) # calculate rising and falling
+
+as.data.frame(df$data) %>% 
+  mutate(date = as.Date(date)) %>% 
+  ggplot(aes(x=date, y=smooth_gcc_90)) + 
+  geom_line() +
+  labs(x="Date", y="GCC") + 
+  # rising "spring" greenup dates 
+  geom_vline(data=phenology_dates$rising, aes(xintercept=transition_50), col="green") + 
+  # falling 'autumn' senescence dates 
+  geom_vline(data=phenology_dates$falling, aes(xintercept=transition_50), col="brown")
+
+```
+
+
+# explore data and make plots 
+
+Find the metadata here:
+https://phenocam.nau.edu/webcam/tools/summary_file_format/
+
+```{r explore}
+# get data frame from larger phenocamr object 
+bnh_df = df$data
+
+# list the column names
+names(bnh_df)
+
+# get summary values of gcc90
+summary(bnh_df$gcc_90, na.rm=T)
+
+# plot gcc90 
+ggplot(bnh_df, aes(x=as.Date(date), y=gcc_90)) + geom_point()
+
+# plot rcc90
+ggplot(bnh_df, aes(x=as.Date(date), y=rcc_90)) + geom_point()
+
+# plot smoothed values 
+ggplot(bnh_df, aes(x=as.Date(date), y=gcc_90)) + geom_point() +
+  geom_line(aes(x=as.Date(date), y=smooth_gcc_90, col="smoothed"))
+
+
+```
+
+## transition days 
+
+```{r transition, eval=T}
+# alternative to the above section that used the phenophases function 
+# load in transition days 
+dft = read_phenocam("bartlettir_DB_1000_3day_transition_dates.csv")$data
+
+names(dft)
+
+# get rising and falling dates 
+td <- dft %>% 
+  dplyr::filter(direction=="rising" & gcc_value=="gcc_90")
+
+fd <- dft %>% 
+  dplyr::filter(direction=="falling" & gcc_value=="gcc_90")
+
+# create a simple line graph of the smooth Green Chromatic Coordinate (Gcc)
+# and add points for transition dates
+ggplot() + 
+  geom_line(data=bnh_df, aes(x=as.Date(date), y=smooth_gcc_90)) + 
+  geom_point(data=td, aes(x=as.Date(transition_50), y=threshold_50, col="rising 50")) + 
+  geom_point(data=fd, aes(x=as.Date(transition_50), y=threshold_50, col="falling 50")) +
+  labs(x="date", y="GCC 90", col="transition")
+
+ggplot() + 
+  geom_line(data=bnh_df, aes(x=as.Date(date), y=smooth_gcc_90)) + 
+  geom_point(data=td, aes(x=as.Date(transition_50), y=threshold_50, col="rising 50")) + 
+  geom_point(data=fd, aes(x=as.Date(transition_50), y=threshold_50, col="falling 50")) +
+  labs(x="date", y="GCC 90", col="transition")
+
+
+```
+
+
+## climate data: Daymet  
+
+Use the function `merge_daymet`
+
+Daymet is continuous, gridded estimates of weather and climate variables creted through statistical interpolation of ground based measurements. Read more here: https://daymet.ornl.gov/
+
+```{r daymet}
+
+bnh_clim = merge_daymet("bartlettir_DB_1000_3day.csv")
+
+names(bnh_clim)
+
+bnh_data = bnh_clim$data
+
+# plot daily rainfall and temperatures 
+ggplot(bnh_data, aes(x=date, y=prcp..mm.day.))+
+  geom_line() + 
+  labs(y="precip [mm]", title="Daily Precipitation") +
+  theme_bw() 
+
+ggplot(bnh_data) +
+  geom_point(aes(x=date, y=tmax..deg.c., col="tmax"), col="red") +
+  geom_point(aes(x=date, y=tmin..deg.c., col="tmin"), col="blue") +
+  labs(y="temp. deg C", title = "Daily temperature") +
+  theme_bw()
+
+```
+
+# Growing degree days 
+```{r agdd}
+
+bnh_data$tavg = (bnh_data$tmax..deg.c.+bnh_data$tmin..deg.c.)/2
+bnh_data$gdd = bnh_data$tavg - 0
+
+bnh_avg = bnh_data %>% group_by(doy) %>% summarize(gdd = mean(gdd))
+
+plot(bnh_avg$doy, bnh_avg$gdd)
+
+
+
+```
+
+
+
+## Explore data with climate 
+
+```{r explore_clim}
+
+# day of the year patterns 
+ggplot(bnh_data) +
+  geom_point(aes(x=doy, y=gcc_90))
+
+# precipitation
+ggplot(bnh_data) + 
+  geom_point(aes(x=prcp..mm.day., y=gcc_90, col=doy)) + scale_color_viridis_c()
+
+# day of the year with daylength 
+ggplot(bnh_data) + 
+   geom_point(aes(x=doy, y=gcc_90, col=dayl..s.)) + scale_color_viridis_c()
+
+# daylength 
+ggplot(bnh_data) +
+  geom_point(aes(x=dayl..s., y=gcc_90)) 
+
+# min temperatures 
+ggplot(bnh_data) +
+  geom_point(aes(x=tmin..deg.c., y=gcc_90))
+# max temperatures 
+ggplot(bnh_data) +
+  geom_point(aes(x=tmax..deg.c., y=gcc_90))
+
+```
+
+## start with linear model 
+```{r lm}
+
+# subset data 
+data_mod = bnh_data %>% dplyr::filter(year<2014)
+
+# start with one variable 
+lm_test = lm(data=data_mod, gcc_90~dayl..s.)
+# see residuals, p-vals, Rsquares, etc. 
+summary(lm_test)
+
+# check with more variables 
+lm_test2 = lm(data=data_mod, gcc_90~dayl..s.+tmin..deg.c.)
+
+# predict with remaining years
+data_pred = bnh_data %>% 
+  dplyr::filter(year>=2014) %>% 
+  select(gcc_90, dayl..s., tmin..deg.c., year, doy, date) 
+
+# predict with one var
+data_pred$pred1_gcc_90 = predict.lm(lm_test, data_pred)
+
+# predict with 2 vars 
+data_pred$pred2_gcc_90 = predict.lm(lm_test2, data_pred)
+
+ggplot(data_pred) + 
+  geom_point(aes(x=date, y=pred1_gcc_90, col="1 var")) + 
+  geom_point(aes(x=date, y=pred2_gcc_90, col="2 vars"))+ 
+  geom_point(aes(x=date, y=gcc_90, col="obs")) 
+
+```
+
+## use models from phenoR package 
+
+```{r pars}
+
+# read in parameter ranges 
+path <- sprintf("%s/extdata/parameter_ranges.csv",path.package("phenor"))
+par_ranges <- read.table(path,
+                        header = TRUE,
+                        sep = ",")
+
+lin_par = par_ranges %>%
+  dplyr::filter(model=="LIN") %>% 
+  select(a,b)
+
+
+
+# load data from phenor package
+bnh = phenocam_DB$bartlettir # in proper format for models 
+
+bnh = pr_flatten(bnh)
+
+
+# data must be formatted for input 
+tmp = LIN(par=c(a=23, b=125), data=bnh, spring=c(60,150))
+
+```
+
+Following this tutorial: https://www.neonscience.org/resources/learning-hub/tutorials/phenocam-phenor-modeling
+
+Many of the functions appear to be outdated 
