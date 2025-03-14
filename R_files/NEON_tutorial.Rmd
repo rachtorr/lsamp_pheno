@@ -41,7 +41,7 @@ url <- "https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project
 phenology_targets <- read_csv(url, show_col_types = FALSE)
   
 # filter by site id 
-sites <- phenology_targets %>% filter(site_id=="ABBY" | site_id=="SJER")
+sites <- phenology_targets %>% filter(site_id=="SJER")
 
 # plot time series 
 ggplot(sites) + 
@@ -273,6 +273,45 @@ fabletools::augment(temp_lm) %>%
   geom_line(aes(y = .fitted, color = .model, lty = "Model")) +
   facet_grid(.model ~ .) +
   theme_bw()
+
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+library(fable)
+library(fabletools)
+library(tsibble)
+
+# Assuming your data frames are named 'eco_data' (ecological observations) 
+# and 'climate_data' (climate observations), and both have a 'date' column
+
+# 1. Join the two data frames by date
+merged_data <- inner_join(site_dates, minute_daily_avg, by = "date")
+
+# 2. Filter to only include rows where the variable is "gcc_90"
+gcc_data <- merged_data %>%
+  filter(variable == "gcc_90")
+
+# 3. Generate a scatterplot of gcc_90 vs. temperature (assuming temperature column is 'temp')
+ggplot(gcc_data, aes(x = tmin, y = observation)) +
+  geom_point() +
+  labs(title = "Scatterplot of GCC_90 vs. Temperature",
+       x = "Temperature",
+       y = "GCC_90 Observation") +
+  theme_minimal()
+
+# 4. Convert the filtered data into a tsibble for time series analysis
+gcc_ts <- gcc_data %>%
+  as_tsibble(index = date) %>% 
+  mutate(doy=yday(date))
+
+# Run a time series linear regression (TSLM) of gcc_90 observations against temperature
+gcc_lm <- gcc_ts %>%
+  model(TSLM(observation ~ tmin+doy))
+
+
+# Print the summary of the regression model
+report(gcc_lm)
+
 
 
 ```
