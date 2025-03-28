@@ -170,7 +170,7 @@ gdd = minute_daily_avg %>%
   mutate(tmean = (tmin+tmax)/2,
          year = year(date),
          doy = yday(date)) %>% 
-  select(year, doy, tmean) %>% 
+  dplyr::select(year, doy, tmean) %>% 
   filter(year>2022) %>% 
   fill(tmean) # not the best strategy but will work for now - fills NA values with previous value 
 
@@ -253,6 +253,7 @@ fable and fable tools package
 
 library(fable)
 library(fabletools)
+library(tsibble)
 
 gcc_df <- phen_temps %>% 
    filter(variable=="gcc_90")
@@ -279,36 +280,33 @@ fabletools::augment(temp_lm) %>%
   facet_grid(.model ~ .) +
   theme_bw()
 
-# Load necessary libraries
-library(dplyr)
-library(ggplot2)
-library(fable)
-library(fabletools)
-library(tsibble)
-
 # Assuming your data frames are named 'eco_data' (ecological observations) 
 # and 'climate_data' (climate observations), and both have a 'date' column
 
 # yearly values 
 
-march_temps <- minute_daily_avg
+# first summarize to only march temps 
+march_temps <- minute_daily_avg %>% 
+  fill(tmean) %>% 
+  mutate(year=year(date),
+         month=month(date)) %>% 
+  filter(month==3) %>% 
+  group_by(year) %>% 
+  summarise(tmean = mean(tmean))
 
+# summarize gcc by max annual 
 site_dates_yr <- site_dates %>% 
   mutate(year = year(datetime)) %>%
   filter(variable=="gcc_90") %>% 
   fill(observation) %>% 
   group_by(year) %>% 
-  summarize(max_gcc90 = max(observation))
+  summarize(max_gcc90 = max(observation, na.rm=T))
 
-# 1. Join the two data frames by date
+# Join the two data frames by date
 merged_data <- full_join(site_dates_yr, march_temps, by = "year")
 
-# 2. Filter to only include rows where the variable is "gcc_90"
-gcc_data <- merged_data %>%
-  filter(variable == "gcc_90")
-
 # 3. Generate a scatterplot of gcc_90 vs. temperature (assuming temperature column is 'temp')
-ggplot(gcc_data, aes(x = tmin, y = observation)) +
+ggplot(merged_data, aes(x = tmean, y = max_gcc90)) +
   geom_point() +
   labs(title = "Scatterplot of GCC_90 vs. Temperature",
        x = "Temperature",
@@ -316,14 +314,12 @@ ggplot(gcc_data, aes(x = tmin, y = observation)) +
   theme_minimal()
 
 # 4. Convert the filtered data into a tsibble for time series analysis
-gcc_ts <- gcc_data %>%
-  as_tsibble(index = date) %>% 
-  mutate(doy=yday(date))
+gcc_ts <- merged_data %>%
+  as_tsibble(index = year) 
 
 # Run a time series linear regression (TSLM) of gcc_90 observations against temperature
 gcc_lm <- gcc_ts %>%
-  model(TSLM(observation ~ tmin+doy))
-
+  model(TSLM(max_gcc90 ~ tmean))
 
 # Print the summary of the regression model
 report(gcc_lm)
@@ -333,4 +329,4 @@ report(gcc_lm)
 
 ```
 
-
+Think about how we could rerun this workflow with different x and y in our model, or with additional drivers. 
