@@ -67,6 +67,14 @@ phenocamr::download_phenocam(
 #  out_dir = "." # saves in current working dir
 #  )
 
+phenocamr::download_phenocam(
+  frequency = 3,
+  roi_id = 1000,
+  site = "NEON.D17.SJER.DP1.00033",
+  phenophase = TRUE,
+  out_dir = "." # saves in current working dir
+  )
+
 ```
 
 A new file should be downloaded in your folder: bartlettir_DB_1000_3day.csv
@@ -81,7 +89,7 @@ source has clear steps, but uses base plotting, below I create same plot with gg
 
 ```{r phenocamr}
 # read as phenocamr type 
-df = read_phenocam("bartlettir_DB_1000_3day.csv")
+df = read_phenocam("NEON.D17.SJER.DP1.00033_EN_1000_3day.csv")
 
 df <- expand_phenocam(df) # expand every 3 day to every day 
 
@@ -90,6 +98,7 @@ df <- detect_outliers(df) # detect outliers
 df <- smooth_ts(df) # smooth data using AIC 
 
 phenology_dates <- phenophases(df, internal = TRUE) # calculate rising and falling
+print(phenology_dates)
 
 as.data.frame(df$data) %>% 
   mutate(date = as.Date(date)) %>% 

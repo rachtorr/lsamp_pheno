@@ -50,3 +50,6 @@ rsconnect/
 
 # data folder with my examples 
 example_data/
+
+# not NEON data like GRSM/GRSM_SWS_30_minute_CP1.00094.001.rds
+*.rds

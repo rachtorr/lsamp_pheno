@@ -37,8 +37,8 @@ This example will look at the NEON site GRSM Great Smoky Mountains
 ```{r download}
 
 # change my_site to the phenocam site you are looking at 
-my_site = "NEON.D07.GRSM.DP1.00033"
-
+my_site = "NEON.D16.WREF.DP1.00033"
+vegtype="EN"
 # can see rois to select where to download(regions of interest)
 list_rois() %>% 
   filter(site==my_site)
@@ -46,7 +46,7 @@ list_rois() %>%
 
 # download phenocam - this should create 2 csv files 
 phenocamr::download_phenocam(
-  veg_type = "DB", #DB for decid broadleaf, EN for evergreen, default is ALL
+  veg_type = vegtype, #DB for decid broadleaf, EN for evergreen, default is ALL
   roi_id = 1000,
   site = my_site,
   phenophase = TRUE,
@@ -67,7 +67,7 @@ source has clear steps, but uses base plotting, below I create same plot with gg
 
 ```{r phenocamr}
 # read as phenocamr type 
-df = read_phenocam(paste(my_site,"DB_1000_3day.csv", sep="_"))
+df = read_phenocam(paste(my_site,vegtype,"1000_3day.csv", sep="_"))
 
 df <- expand_phenocam(df) # expand every 3 day to every day 
 
@@ -128,7 +128,7 @@ ggplot(site_df, aes(x=as.Date(date), y=gcc_90)) +
 ```{r transition, eval=T}
 # alternative to the above section that used the phenophases function 
 # load in transition days 
-dft = read_phenocam(paste(my_site,"DB_1000_3day_transition_dates.csv", sep="_"))$data
+dft = read_phenocam(paste(my_site,vegtype, "1000_3day_transition_dates.csv", sep="_"))$data
 
 names(dft)
 
@@ -180,7 +180,7 @@ Use the function `merge_daymet()` to get climate and daylength
 Daymet is continuous, gridded estimates of weather and climate variables creted through statistical interpolation of ground based measurements. Read more here: https://daymet.ornl.gov/
 
 ```{r daymet}
-site_clim = merge_daymet(paste(my_site, "DB_1000_3day.csv", sep="_"))
+site_clim = merge_daymet(paste(my_site, vegtype, "1000_3day.csv", sep="_"))
 
 names(site_clim)
 
@@ -206,9 +206,10 @@ ggplot(site_data) +
 site_data$tavg = (site_data$tmax..deg.c.+site_data$tmin..deg.c.)/2
 site_data$gdd = site_data$tavg - 0
 
-bnh_avg = site_data %>% group_by(doy) %>% summarize(gdd = mean(gdd))
+site_avg = site_data %>% group_by(doy) %>% summarize(gdd = mean(gdd))
 
-plot(bnh_avg$doy, bnh_avg$gdd)
+ggplot(site_avg, aes(x=doy, y=gdd)) + 
+  geom_point() + ggtitle("growing degree day")
 
 ```
 
@@ -317,7 +318,7 @@ lin_par = par_ranges %>%
 
 # load data from phenor package - contains all decid broadleaf (DB) sites budburst data 
 # in proper format for models
-pheno_data = phenocam_DB$smokylook  # smoky look is in great smoky mountains 
+pheno_data = phenocam_EN$windriver  
 
 pheno_data = pr_flatten(pheno_data)
 
@@ -348,8 +349,14 @@ ggplot(spr_temps_trans,
   geom_point() + 
   geom_smooth(method="lm")
 
+# run sample lm
+test = lm(tday~tmin, spr_temps_trans)
+
+a = test$coefficients[2]
+b = test$coefficients[1]
+
 # run the linear model and get predicted transition dates 
-tmp = LIN(par=c(a=1, b=114), data=pheno_data, spring=c(60,150))
+tmp = LIN(par=c(a=a, b=b), data=pheno_data, spring=c(60,150))
 
 # add predictions 
 spr_temps_trans$pred_td <- tmp

@@ -1,0 +1,192 @@
+---
+title: "phenoR downloads"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# if running this for the first time, you'll need to uncomment the lines 13-16 and run those, otherwise will get error trying to load phenocamr
+
+#install.packages("devtools")
+#if(!require(remotes)){install.packages("remotes")}
+#remotes::install_github("bluegreen-labs/phenor@v1.3.1")
+#install.packages("phenocamr")
+
+library(phenor)
+library(phenocamr)
+library(tidyverse)
+library(tsibble)
+library(fable)
+library(fabletools)
+```
+
+## tutorial - PhenocamR packages 
+
+https://www.neonscience.org/resources/learning-hub/tutorials/phenocam-phenor-modeling
+
+For the latest version, install `phenor` from here: https://github.com/bluegreen-labs/phenor (be sure to update all packages for installation to work, and install GenSA)
+
+See a map of phenocam sites [here](https://phenocam.nau.edu/webcam/network/map/)
+
+This example will look at the NEON site GRSM Great Smoky Mountains 
+
+
+```{r roi}
+
+# change my_site to the phenocam site you are looking at 
+my_site = "NEON.D02.SERC.DP1.00033"
+
+# can see rois to select where to download(regions of interest)
+list_rois() %>% 
+  filter(site==my_site)
+# roi id 1000 has been around the longest with least amount of missing data, makese sense to use as example 
+```
+
+```{r download, eval=F}
+# download phenocam - this should create 2 csv files 
+phenocamr::download_phenocam(
+  veg_type = "DB", #DB for decid broadleaf, EN for evergreen, default is ALL
+  roi_id = 1000,
+  site = my_site,
+  phenophase = TRUE,
+  out_dir = "." # saves in directory 
+  )
+
+```
+
+A new file should be downloaded in your folder, the format is: `Site_ID_Veg_ROI_3day.csv` or with `_transition.csv`. For the example above, the files start with `NEON.D077.SERC.DP1.00033_DB_1000_3day`
+
+The data is set up as a `phenocamr` type, which includes a list with metadata and timeseries data. 
+
+Let's repeat this process for MLBS site. 
+
+
+```{r roi2}
+
+# change my_site to the phenocam site you are looking at 
+my_site2 = "NEON.D07.MLBS.DP1.00033"
+
+# can see rois to select where to download(regions of interest)
+list_rois() %>% 
+  filter(site==my_site2)
+# roi id 2000 has 6.7 years with least amount of missing data
+```
+
+```{r download2, eval=F}
+# download phenocam - this should create 2 csv files 
+phenocamr::download_phenocam(
+  veg_type = "DB", #DB for decid broadleaf, EN for evergreen, default is ALL
+  roi_id = 2000,
+  site = my_site2,
+  phenophase = TRUE,
+  out_dir = "." # saves in directory 
+  )
+
+```
+
+
+
+
+## following steps from phenocamr vignette 
+
+[see website here](https://bluegreen-labs.github.io/phenocamr/articles/phenocamr-vignette.html)
+
+source has clear steps, but uses base plotting, below I create same plot with ggplot. In this plot, the green line represents date when green up has reached 50%, and the red line represents date when 50% of gcc was lost. To see how this is calculated, check out the figures on page 6 of the [phenocam access guide](chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj/https://phenocam.nau.edu/education/PhenoCam_Access_Guide.pdf).
+
+```{r phenocamr}
+# read as phenocamr type 
+df = read_phenocam(paste(my_site,"_DB_1000_3day.csv", sep=""))
+
+df <- expand_phenocam(df) # expand every 3 day to every day 
+
+df <- detect_outliers(df) # detect outliers
+
+df <- smooth_ts(df) # smooth data using AIC 
+
+phenology_dates <- phenophases(df, internal = TRUE) # calculate rising and falling
+
+site1_plot = as.data.frame(df$data) %>% 
+  mutate(date = as.Date(date)) %>% 
+  ggplot(aes(x=date, y=smooth_gcc_90)) + 
+  geom_line() +
+  labs(x="Date", y="GCC") + 
+  # rising "spring" greenup dates 
+  geom_vline(data=phenology_dates$rising, aes(xintercept=transition_50), col="lightgreen") + 
+  # falling 'autumn' senescence dates 
+  geom_vline(data=phenology_dates$falling, aes(xintercept=transition_50), col="pink")+
+  ggtitle(paste("gcc transitions for site:", my_site))
+
+site1_plot
+
+```
+
+We can compare our two sites. 
+
+```{r phenocamr2}
+# read as phenocamr type 
+df2 = read_phenocam(paste(my_site2,"_DB_2000_3day.csv", sep=""))
+
+df2 <- expand_phenocam(df2) # expand every 3 day to every day 
+df2 <- detect_outliers(df2) # detect outliers
+df2 <- smooth_ts(df2) # smooth data using AIC 
+
+phenology_dates2 <- phenophases(df2, internal = TRUE) # calculate rising and falling
+
+site2 = as.data.frame(df2$data) %>% 
+  mutate(date = as.Date(date))
+
+site1_plot +
+  geom_line(data=site2, aes(x=date, y=smooth_gcc_90), linetype='dashed') + 
+  # rising "spring" greenup dates 
+  geom_vline(data=phenology_dates2$rising, aes(xintercept=transition_50), col="darkgreen", linetype='dashed') + 
+  # falling 'autumn' senescence dates 
+  geom_vline(data=phenology_dates2$falling, aes(xintercept=transition_50), col="darkred", linetype="dashed")+
+  ggtitle("gcc transitions comparing sites (solid line is SERC, dashed is MLBS)")
+
+```
+
+For spring Green up, we will focus on the `phenology_dates$rising` data frame. 
+
+Columns are labeled as `transition` with a number, where the number represents at what percentage the amount of green up has reached. 10% is when leaves begin to emerge in the spring. The transition column values are dates. 
+
+There are also `threshold` columns which correspond to the GCC value at that transition date. 
+
+
+
+```{r prev}
+head(phenology_dates2$rising)
+
+```
+
+Next I am going to simplify this data so it is easier to work with, then save as a new CSV file. 
+
+```{r dataframe}
+
+# combine data frame 
+phenology_dates$rising$site = my_site
+phenology_dates2$rising$site = my_site2 
+
+phenology_dates_sites = rbind(phenology_dates$rising, phenology_dates2$rising)
+
+date_cols = colnames(phenology_dates_sites)[2:10]
+
+# filter to gcc_Value, change date columns to format as date 
+phen_tosave = phenology_dates_sites %>% 
+  filter(gcc_value=="gcc_90") %>% 
+  mutate_at(all_of(date_cols), list(as.Date)) %>% 
+  # can also get year and doy for transitions 
+  mutate(year = year(transition_50),
+         doy50 = yday(transition_50),
+         doy25 = yday(transition_25),
+         doy10 = yday(transition_10))
+
+# preview 
+head(phen_tosave)
+
+```
+
+```{preview save, eval=F}
+# save csv 
+write.csv(phen_tosave, "SERC_MLBS_spring_dates.csv")
+```

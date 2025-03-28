@@ -116,7 +116,7 @@ library(neonUtilities)
 site_dates = sites %>% filter(site_id=="SJER")
 # the functions below select the first and last date entry in the datetime column, then format to Year-month 
 start = format(site_dates$datetime[1], "%Y-%m")
-end = format(site_dates$datetime[nrow(dates)], "%Y-%m")
+end = format(site_dates$datetime[nrow(site_dates)], "%Y-%m")
 
 # alternatively to above, you could hand select your start and end times, format has to be Year-month 
 start = "2017-01"
@@ -130,18 +130,23 @@ end = "2025-01"
 #                           enddate=end)
 # the format of this download is a list of 7 that contains metadata and data frames for 1 minute observations (TAAT_1min) and 30 minute (TAAT_30min)
 
-phen <- loadByProduct(dpID=c("DP1.00033.001"),
+phen <- loadByProduct(dpID=c("DP1.00003.001"),
                           site=c("SJER"),
-                          startdate="2018-01", 
-                          enddate="2018-12")
+                          startdate=start, 
+                          enddate=end,
+                      tabl="TAAT_1min") # use tabl to select the data frame inside the list that comes from neon download 
 
 # get daily min, max, and mean temps 
-minute_daily_avg = triptemp$TAAT_1min %>% 
-  mutate(date = date(startDateTime)) %>% 
-  group_by(date) %>% 
-  summarize(tmin = min(tempTripleMean),
-            tmax = max(tempTripleMean),
-            tmean = mean(tempTripleMean)) 
+minute_daily_avg = phen$TAAT_1min %>% 
+  mutate(date = date(startDateTime),
+         month = month(startDateTime), 
+         year=year(date)) %>% 
+  fill(tempTripleMean) %>% 
+  filter(month==3) %>% 
+  group_by(year) %>% 
+  summarize(march_tmin = min(tempTripleMean),
+            march_tmax = max(tempTripleMean),
+            march_tmean = mean(tempTripleMean)) 
 
 ggplot(minute_daily_avg, 
        aes(x=date, y=tmean)) +
@@ -284,8 +289,19 @@ library(tsibble)
 # Assuming your data frames are named 'eco_data' (ecological observations) 
 # and 'climate_data' (climate observations), and both have a 'date' column
 
+# yearly values 
+
+march_temps <- minute_daily_avg
+
+site_dates_yr <- site_dates %>% 
+  mutate(year = year(datetime)) %>%
+  filter(variable=="gcc_90") %>% 
+  fill(observation) %>% 
+  group_by(year) %>% 
+  summarize(max_gcc90 = max(observation))
+
 # 1. Join the two data frames by date
-merged_data <- inner_join(site_dates, minute_daily_avg, by = "date")
+merged_data <- full_join(site_dates_yr, march_temps, by = "year")
 
 # 2. Filter to only include rows where the variable is "gcc_90"
 gcc_data <- merged_data %>%
@@ -311,6 +327,7 @@ gcc_lm <- gcc_ts %>%
 
 # Print the summary of the regression model
 report(gcc_lm)
+
 
 
 
