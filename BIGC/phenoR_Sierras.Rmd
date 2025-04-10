@@ -37,9 +37,10 @@ This example will look at the NEON site GRSM Great Smoky Mountains
 ```{r download}
 
 # change my_site to the phenocam site you are looking at 
-my_site = "NEON.D17.TEAK.DP1.00033"
+my_site = "NEON.D17.SOAP.DP1.00033"
 
-my_site_under = "NEON.D17.SOAP.DP1.00042"
+#my_site_under = "NEON.D17.SOAP.DP1.00042"
+
 # can see rois to select where to download(regions of interest)
 list_rois() %>% 
   filter(site==my_site)
@@ -97,34 +98,6 @@ as.data.frame(df$data) %>%
 Find the metadata here:
 https://phenocam.nau.edu/webcam/tools/summary_file_format/
 
-```{r explore}
-# get data frame from larger phenocamr object 
-site_df = df$data
-
-# list the column names
-names(site_df)
-
-# get summary values of gcc90
-summary(site_df$gcc_90, na.rm=T)
-
-# plot gcc90 
-ggplot(site_df, aes(x=as.Date(date), y=gcc_90)) + 
-  geom_point() +
-  ggtitle("daily GCC_90")
-
-# plot rcc90
-ggplot(site_df, aes(x=as.Date(date), y=rcc_90)) + 
-  geom_point() +
-  ggtitle("daily RCC_90")
-
-# plot smoothed values 
-ggplot(site_df, aes(x=as.Date(date), y=gcc_90)) + 
-  geom_point() +
-  geom_line(aes(x=as.Date(date), y=smooth_gcc_90, col="smoothed"))
-
-
-```
-
 ## transition days 
 
 ```{r transition, eval=T}
@@ -141,33 +114,24 @@ td <- dft %>%
 fd <- dft %>% 
   dplyr::filter(direction=="falling" & gcc_value=="gcc_90")
 
-# create a simple line graph of the smooth Green Chromatic Coordinate (Gcc)
-# and add points for transition dates
-# this is same as above, but read in from the transition csv 
-ggplot() + 
-  geom_line(data=site_df, aes(x=as.Date(date), y=smooth_gcc_90)) + 
-  geom_point(data=td, aes(x=as.Date(transition_50), y=threshold_50, col="rising 50")) + 
-  geom_point(data=fd, aes(x=as.Date(transition_50), y=threshold_50, col="falling 50")) +
-  labs(x="date", y="GCC 90", col="transition")
-
 # can also compare different years on same axis 
 # get day of year for transition dates 
 td_doy = td %>% 
   mutate(doy_t50 = yday(transition_50),
          year = year(transition_50)) 
 
-ggplot(site_df, aes(x=doy, y=smooth_gcc_90, col=as.factor(year))) +
+ggplot(df$data, aes(x=doy, y=smooth_gcc_90, col=as.factor(year))) +
   geom_line() +
   geom_vline(data=td_doy, aes(xintercept=doy_t50, col=as.factor(year)), linetype="dashed")
 
 # this is not a great visualization, hard to see, can try to zoom in 
-site_df %>% filter(doy<150) %>% 
+df$data %>% filter(doy<150) %>% 
   ggplot(aes(x=doy, y=smooth_gcc_90, col=as.factor(year))) +
   geom_line() +
   geom_vline(data=td_doy, aes(xintercept=doy_t50, col=as.factor(year)), linetype="dashed")
 
 
-# can also use transition points to plot 
+# can also use transition points in a scatter plot 
 td_doy %>% 
   ggplot(aes(x=as.factor(year), y=doy_t50)) +
   geom_point(aes(col=threshold_50)) 
@@ -182,7 +146,7 @@ Use the function `merge_daymet()` to get climate and daylength
 Daymet is continuous, gridded estimates of weather and climate variables creted through statistical interpolation of ground based measurements. Read more here: https://daymet.ornl.gov/
 
 ```{r daymet}
-site_clim = merge_daymet(paste(my_site, "DB_1000_3day.csv", sep="_"))
+site_clim = merge_daymet(paste(my_site, "EN_1000_3day.csv", sep="_"))
 
 names(site_clim)
 
@@ -201,20 +165,6 @@ ggplot(site_data) +
   theme_bw()
 
 ```
-
-# Growing degree days 
-```{r agdd}
-
-site_data$tavg = (site_data$tmax..deg.c.+site_data$tmin..deg.c.)/2
-site_data$gdd = site_data$tavg - 0
-
-bnh_avg = site_data %>% group_by(doy) %>% summarize(gdd = mean(gdd))
-
-plot(bnh_avg$doy, bnh_avg$gdd)
-
-```
-
-
 
 ## Explore data with climate 
 
@@ -258,7 +208,7 @@ data_mod = site_data %>% dplyr::filter(year<2020)
 
 # start with trying 1-2 variables 
 lm_test = as_tsibble(data_mod) %>% 
-  model(lm1=fable::TSLM(gcc_90~dayl..s.),
+  fabletools::model(lm1=fable::TSLM(gcc_90~dayl..s.),
         lm2 = fable::TSLM(gcc_90~dayl..s.+tmin..deg.c.))
 
 # see residuals, p-vals, Rsquares, etc. 
@@ -295,75 +245,28 @@ data_pred %>%
 
 ```
 
-In the above we forecasted for daily values, but what if we want to use annual metrics to predict transition dates? 
+## Load in Snow Water Equivalent Phenology
+
+Use `full_join()` to combine with GCC phenology. 
 
 
+```{r snow}
 
-## use models from phenoR package 
+snow <- read.csv("../data/TMR_snotel_pheno.csv")
 
-```{r pars}
+# join with transition dates of spring gcc 
 
-# read in parameter ranges 
-path <- sprintf("%s/extdata/parameter_ranges.csv",path.package("phenor"))
-par_ranges <- read.table(path,
-                        header = TRUE,
-                        sep = ",")
+td$year = year(td$transition_50)
+td$gcc_yday50 = yday(td$transition_50) # make column for day of year
 
-# estimates phenophase timing 
-# LIN is a linear regression against spring temps 
-lin_par = par_ranges %>%
-  dplyr::filter(model=="LIN") %>% 
-  select(a,b)
+snow_gcc_join <- full_join(snow, td, by="year")
 
+head(snow_gcc_join)
 
+# plot 
+ggplot(snow_gcc_join, aes(x=max_swe, y=max_gcc)) + geom_point()
 
-# load data from phenor package - contains all decid broadleaf (DB) sites budburst data 
-# in proper format for models
-pheno_data = phenocam_DB$smokylook  # smoky look is in great smoky mountains 
-
-pheno_data = pr_flatten(pheno_data)
-
-# modeling spring temps v. transition dates 
-# format is that each column is a year 
-# here converting to a format we can visualize 
-
-# start data frame 
-spr_temps <- data.frame(pheno_data$Tmini) 
-# label columns 
-colnames(spr_temps) <- pheno_data$year
-# create doy column 
-spr_temps$doy = as.numeric(rownames(spr_temps))
-
-# in this chunk, we take spring temperatures, get the mean each year, and combine with the transition day vector
-spr_temps_trans <- spr_temps %>% 
-          filter(doy>=60 & doy <=150) %>% 
-          pivot_longer(cols=-c(doy),
-                       names_to="year",
-                       values_to="tmin") %>% 
-  group_by(year) %>% 
-  summarize(tmin = mean(tmin)) %>% 
-  mutate(tday = pheno_data$transition_dates)
-
-# plot the relationship we are doing a model on 
-ggplot(spr_temps_trans,
-       aes(x=tmin, y=tday)) + 
-  geom_point() + 
-  geom_smooth(method="lm")
-
-# run the linear model and get predicted transition dates 
-tmp = LIN(par=c(a=1, b=114), data=pheno_data, spring=c(60,150))
-
-# add predictions 
-spr_temps_trans$pred_td <- tmp
-
-# plot again with predictions to visualize 
-ggplot(spr_temps_trans,
-       aes(x=tmin, y=tday, col="obs")) + 
-  geom_point() + 
-  geom_point(aes(x=tmin, y=pred_td, col="pred"))
+ggplot(snow_gcc_join, aes(x=max_swe_doy, y=gcc_yday50)) + geom_point()
 
 
 ```
-
-Following this tutorial: https://www.neonscience.org/resources/learning-hub/tutorials/phenocam-phenor-modeling
-
