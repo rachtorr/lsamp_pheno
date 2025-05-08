@@ -1,0 +1,296 @@
+---
+title: "pheno"
+author: "rachel torres"
+date: "2025-01-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#install.packages("devtools")
+#if(!require(remotes)){install.packages("remotes")}
+#remotes::install_github("bluegreen-labs/phenor@v1.3.1")
+#install.packages("phenocamr")
+#install.packages("maps")
+
+library(phenor)
+library(phenocamr)
+library(maps)
+library(raster)
+library(tidyverse)
+```
+
+## tutorial - NEON pheno packages 
+
+https://www.neonscience.org/resources/learning-hub/tutorials/phenocam-phenor-modeling
+
+For the latest version, install `phenor` from here: https://github.com/bluegreen-labs/phenor (be sure to update all packages for installation to work, and install GenSA)
+
+
+```{r download}
+
+# example from website: Bartlett NH 
+# phenocamr::download_phenocam(
+#   frequency = 3,
+#   veg_type = "DB", #DB for decid broadlead, EN for evergreen, default is ALL 
+#   roi_id = 1000,
+#   site = "bartlettir",
+#   phenophase = TRUE,
+#   out_dir = "." # saves in current working dir
+#   )
+
+# evergreens in del norte county (close to north humboldt)
+# phenocamr::download_phenocam(
+#   frequency = 3,
+#   veg_type = "EN", #DB for decid broadlead, EN for evergreen, default is ALL 
+#   roi_id = 1000,
+#   site = "delnortecounty1",
+#   phenophase = TRUE,
+#   out_dir = "." # saves in current working dir
+#   )
+
+# shrubs in crownpoint NM, NE of Gallup at Navajo Technical University 
+#phenocamr::download_phenocam(
+#  frequency = 3,
+#  roi_id = 1000,
+#  site = "ntupinyongarden",
+#  phenophase = TRUE,
+#  out_dir = "." # saves in current working dir
+#  )
+
+# two files: time series and transition data 
+```
+# explore data
+
+Find the metadata here:
+https://phenocam.nau.edu/webcam/tools/summary_file_format/
+
+
+## use vignette 
+
+https://bluegreen-labs.github.io/phenocamr/articles/phenocamr-vignette.html
+
+source has clear steps, but uses base plotting 
+
+```{r phenocamr}
+# read as phenocamr type 
+df = read_phenocam("example_data/bartlettir_DB_1000_3day.csv")
+
+df <- expand_phenocam(df) # expand every 3 day to every day 
+
+df <- detect_outliers(df) # detect outliers
+
+df <- smooth_ts(df) # smooth data using AIC 
+
+phenology_dates <- phenophases(df, internal = TRUE) # calculate rising and falling
+
+as.data.frame(df$data) %>% 
+  mutate(date = as.Date(date)) %>% 
+  ggplot(aes(x=date, y=smooth_gcc_90)) + 
+  geom_line() +
+  labs(x="Date", y="GCC") + 
+  # rising "spring" greenup dates 
+  geom_vline(data=phenology_dates$rising, aes(xintercept=transition_50), col="green") + 
+  # falling 'autumn' senescence dates 
+  geom_vline(data=phenology_dates$falling, aes(xintercept=transition_50), col="brown")
+
+
+```
+
+## climate data: Daymet  
+
+Use the function `merge_daymet`
+
+Daymet is continuous, gridded estimates of weather and climate variables creted through statistical interpolation of ground based measurements. Read more here: https://daymet.ornl.gov/
+
+```{r daymet}
+
+bnh_clim = merge_daymet("example_data/bartlettir_DB_1000_3day.csv")
+
+names(bnh_clim)
+
+bnh_data = bnh_clim$data
+
+# plot daily rainfall and temperatures 
+ggplot(bnh_data, aes(x=date, y=prcp..mm.day.))+
+  geom_line() + 
+  labs(y="precip [mm]", title="Daily Precipitation") +
+  theme_bw() 
+
+ggplot(bnh_data) +
+  geom_point(aes(x=date, y=tmax..deg.c., col="tmax"), col="red") +
+  geom_point(aes(x=date, y=tmin..deg.c., col="tmin"), col="blue") +
+  labs(y="temp. deg C", title = "Daily temperature") +
+  theme_bw()
+
+```
+
+## Explore data with climate 
+
+```{r explore_clim}
+
+# day of the year patterns 
+ggplot(bnh_data) +
+  geom_point(aes(x=doy, y=gcc_90))
+
+# precipitation
+ggplot(bnh_data) + 
+  geom_point(aes(x=prcp..mm.day., y=gcc_90, col=doy)) + scale_color_viridis_c()
+
+# day of the year with daylength 
+ggplot(bnh_data) + 
+   geom_point(aes(x=doy, y=gcc_90, col=dayl..s.)) + scale_color_viridis_c()
+
+# daylength 
+ggplot(bnh_data) +
+  geom_point(aes(x=doy, y=gcc_90, col=dayl..s.)) + scale_color_viridis_c()
+
+# min temperatures 
+ggplot(bnh_data) +
+  geom_point(aes(x=tmin..deg.c., y=gcc_90))
+# max temperatures 
+ggplot(bnh_data) +
+  geom_point(aes(x=tmax..deg.c., y=gcc_90))
+
+```
+
+## start with linear model 
+```{r lm}
+
+# subset data 
+data_mod = bnh_data %>% dplyr::filter(year<2014)
+
+# start with one variable 
+lm_test = lm(data=data_mod, gcc_90~dayl..s.)
+# see residuals, p-vals, Rsquares, etc. 
+summary(lm_test)
+
+# check with more variables 
+lm_test2 = lm(data=data_mod, gcc_90~dayl..s.+tmin..deg.c.)
+
+# predict with remaining years
+data_pred = bnh_data %>% 
+  dplyr::filter(year>=2014) %>% 
+  select(gcc_90, dayl..s., tmin..deg.c., year, doy, date) 
+
+# predict with one var
+data_pred$pred1_gcc_90 = predict.lm(lm_test, data_pred)
+
+# predict with 2 vars 
+data_pred$pred2_gcc_90 = predict.lm(lm_test2, data_pred)
+
+ggplot(data_pred) + 
+  geom_point(aes(x=date, y=pred1_gcc_90, col="1 var")) + 
+  geom_point(aes(x=date, y=pred2_gcc_90, col="2 vars"))+ 
+  geom_point(aes(x=date, y=gcc_90, col="obs")) 
+
+```
+
+## use models from phenoR package 
+
+Transition dates are 25% of GCC amplitude - included in phenocamr data structure 
+
+Ti = mean daily temps 
+
+Li = daylength 
+
+```{r pars}
+
+# read in parameter ranges 
+path <- sprintf("%s/extdata/parameter_ranges.csv",path.package("phenor"))
+par_ranges <- read.table(path,
+                        header = TRUE,
+                        sep = ",")
+
+lin_par = par_ranges %>%
+  dplyr::filter(model=="LIN") %>% 
+  select(a,b)
+
+# load data from phenor package
+bnh = phenocam_DB$bartlettir # in proper format for models 
+bnh = phenocam_DB
+# plot temps 
+tmin = data.frame(bnh$Ti) 
+colnames(tmin) <- bnh$year
+tmin$doy = bnh$doy
+# shifting doy so that 0 is beginning of year jan 1 
+tmin$doy = ifelse(tmin$doy<0,
+                   tmin$doy+365,
+                   tmin$doy)
+                  
+
+tmin2 = pivot_longer(tmin, names_to="year", values_to="tmin", cols=-doy)
+
+# plot temperatures 
+tmin2 %>% 
+ggplot(aes(x=doy, y=tmin, col=year)) + 
+  geom_line() 
+
+# make year / spring dates 
+spring = data.frame(year=bnh$year, greenup=bnh$transition_dates)
+
+# plot this pattern
+ggplot(spring, aes(x=year, y=greenup)) +
+  geom_point() +
+  geom_smooth(method="lm") 
+
+try_lm = lm(data=spring, greenup~year)
+
+# add dates to plot 
+tmin2 %>% 
+ggplot(aes(x=doy, y=tmin, col=as.factor(year))) + 
+  geom_line() +
+  geom_vline(data=spring, aes(xintercept=greenup, col=as.factor(year))) + scale_color_viridis_d()
+
+# plot spring df with tmin 
+ann_tmin = tmin2 %>% group_by(year) %>% 
+  summarise(tmin_min = min(tmin),
+            tmin_max = max(tmin),
+            tmin_mn = mean(tmin)) %>% 
+  mutate(year=as.double(year)) %>% 
+  inner_join(spring, by="year")
+
+ggplot(ann_tmin, aes(x=year, 
+                     y=tmin_mn,
+                     ymin=tmin_min,
+                     ymax=tmin_max)) + geom_pointrange()
+
+ggplot(ann_tmin, aes(y=greenup, 
+                     x=tmin_mn)) + 
+  geom_point() + geom_smooth(method='lm')
+
+# could also look at spring temps 
+# we will define spring as 60-151 (March-Apr-May)
+ann_tmin_spr = tmin2 %>% 
+  filter(doy>=60 & 
+           doy<=151) %>% 
+  group_by(year) %>% 
+  summarise(tmin_min = min(tmin),
+            tmin_max = max(tmin),
+            tmin_mn = mean(tmin)) %>% 
+  mutate(year=as.double(year)) %>% 
+  inner_join(spring, by="year")
+
+# plot with mean min tmps
+ggplot(ann_tmin_spr, aes(y=greenup, 
+                     x=tmin_mn)) + 
+  geom_point() + geom_smooth(method='lm')
+
+# estimate params by working backwards with 
+spr_lm = lm(data=ann_tmin_spr, greenup~tmin_mn)
+summary(spr_lm)
+
+# data must be formatted for input 
+# LIN runs a linear model of spring mean temps 
+# doy = a*mean_spring_temp + b 
+tmp = LIN(par=c(a=-2.3, b=138.8), data=bnh)
+
+ann_tmin_spr$lm_pred = tmp
+
+ggplot(ann_tmin_spr) +
+  geom_point(aes(x=greenup, y=lm_pred)) +
+  geom_abline(aes(intercept=0, slope=1)) +
+  labs(x="observed", y="predicted")
+
+```
