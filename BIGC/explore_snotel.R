@@ -36,7 +36,7 @@ url = "https://cdec.water.ca.gov/dynamicapp/req/CSVDataServlet?Stations=TMR&Sens
 
 snow <- read.csv(url)
 
-write_csv(snow, "Documents/Github/lsamp_pheno/data/TMR_snow_raw_data.csv")
+write_csv(snow, "BIGC/TMR_snow_raw_data.csv")
 
 head(snow)
 
@@ -155,3 +155,4 @@ url = "https://cdec.water.ca.gov/dynamicapp/req/CSVDataServlet?Stations=TMR&Sens
 
 snow <- read.csv(url)
 
+ggplot_na_distribution(as.numeric(snow$VALUE))

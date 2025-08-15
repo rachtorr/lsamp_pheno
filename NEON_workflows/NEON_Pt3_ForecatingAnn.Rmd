@@ -1,0 +1,70 @@
+---
+title: "Part 3: Forecasting Spring Green up"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Part 3: Forecast annual values
+
+## Example: SJER annual patterns
+
+Daily values may not show a clear pattern - this is where we need to look for context in the literature.
+
+The SJER site has an [oak woodland](https://phenocam.nau.edu/webcam/roi/NEON.D17.SJER.DP1.00033/EN_1000/). A study on oak species phenology found that winter precipitation and temperature were significant drivers of the timing of 5 oak species phenophases ([Armstrong-Herniman and Greenwood, 2021](https://bioone.org/journals/madro%c3%b1o/volume-68/issue-4/0024-9637-68.4.450/THE-ROLE-OF-WINTER-PRECIPITATION-AS-A-CLIMATIC-DRIVER-OF/10.3120/0024-9637-68.4.450.full)).
+We can download precipitation data, but to start let's get average winter temperatures, which include the previous year December to the onset year February.
+To get the previous winter, we are first going to create a column for water year, which occur from October to Sept, grouping winter over 1 year.
+
+
+
+
+```{r}
+# fist need to install and load package for water year function
+install.packages("dataRetrieval")
+library(dataRetrieval)
+
+library(tidyverse)
+
+neon_join = read.csv("gcc_neon_join.csv")
+
+```
+
+    
+
+
+```{r}
+# winter_temps
+
+# create new columns for water year and months
+neon_join = neon_join %>%
+  mutate(wy=calcWaterYear(datetime),
+        month=month(datetime))
+
+# preview
+head(neon_join)
+
+# summarize by winter
+winter_t_df = neon_join %>%
+  filter(variable=="gcc_90",
+        month==12 | month<=2) %>%
+  group_by(wy) %>%
+  summarize(winter_T = mean(wssTempTripleMean, na.rm=T))
+
+head(winter_t_df)
+
+```
+
+Aggregating to annual values, while accounting for NAs, leaves us with only 3 years for data points, not significant enough to make predictions. This is specific to the SJER site, but keep in mind when working on your location.
+
+
+The next steps would be to calculate the phenophase transition dates, using the estimation method shown in the [Phenocam access guide](chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj/https://phenocam.nau.edu/education/PhenoCam_Access_Guide.pdf) on page 6.
+
+The R package `phenocamr` includes functions  to simplify this process, and is loaded below.
+
+```{r}
+install.packages('phenocamr')
+library(phenocamr)
+
+```

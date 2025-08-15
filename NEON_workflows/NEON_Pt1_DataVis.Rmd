@@ -1,0 +1,556 @@
+# Part 1: NEON phenology data exploration and visualization
+
+*NOTE: before saving changes, make a copy of this file for yourself*
+
+This is the first of a three part series for creating ecological forecasts of vegetation phenology, using Green Chromatic Coordinate from phenocams as our indicator. The first part downloads and explores data, the second part uses climate data to predict daily values of GCC, and the third part aggregates data to annual metrics to predict timing of spring green-up. This series was co-created with undergraduate student researchers at Cal Poly Humboldt and University of New Mexico Gallup.   
+
+Topics covered in part 1 include:
+
+- introduction to `tidyverse`
+- data visualization with `ggplot` and different geoms
+- downloading neon summary weather data
+- joining data frames 
+
+## Introduction to NEON data and this tutorial
+
+This tutorial was created for undergraduate students who are new to coding in R and working with NEON data. It expands on steps to start coding from the [Ecological Forecast Challenge phenology theme](https://projects.ecoforecast.org/neon4cast-ci/targets.html). In addition to using a dataframe from the Ecological Forecasting Challenge, we download and use data from: 
+
+- [National Ecological Observatory Network](https://www.neonscience.org/data-samples), via the [`neonUtilities` package](https://www.neonscience.org/neonutilities) 
+- [PhenoCam network](https://phenocam.nau.edu/webcam/), via the [`phenocam` package](https://bluegreen-labs.github.io/phenocamr/)
+
+In the Google Colab or Rmd file, you will see emojis to indicate a prompt to either stop and think and answer a question (🧠✍️) or to change a line of code and rerun it (💻). The goal is to help think through the steps and consider what the output means. 
+
+## Getting Started
+
+When working in R, we first load in packages, which contain functions, data, and documentation that go beyond basic R. For this tutorial, we will use `tidyverse` which is a collection of packages that are useful for data organization, analysis, and visualization. When you run the following code you will see output of which packages are loaded. It's important to do this step before doing anything else, because otherwise you could get an error trying to run functions from these packages.
+
+Learn more about [tidyverse](https://www.tidyverse.org/learn/)!
+
+**Notes about formatting:**
+
+- this file is made up of code and markdown cells. Markdown cells contain text, and code cells contain code that you can run by pressing `ctrl+enter` or by clicking the 'run' button to the left
+- comments are lines inside code chunks that are used to make notes, but do not run code. They start with a `#`
+
+
+
+```{r}
+# install if needed 
+if (!require(tidyverse, quietly = TRUE)){install.packages("tidyverse")}
+
+# load in package
+library(tidyverse)
+```
+
+
+## Load in and preview phenology data
+
+In example below the following steps are taken
+
+1. load in data
+2. preview the data frame with `head()` and `dim()`
+3. run summary to see the type of data and the values
+4. filter by site (see list of sites and their IDs at the table at the end of this [link](https://projects.ecoforecast.org/neon4cast-ci/targets.html))
+
+
+**Description of data**:
+
+- `duration` is the time-step of the variable where PT30M is a 30-minute mean, P1D is a daily mean, and P1W is a weekly total.
+- The `forecast horizon` is the number of days-ahead that we want you to forecast.
+- The `latency` is the time between data collection and data availability in the target file
+- `variable` is what is being observed
+  - **gcc_90** - Green chromatic coordinate is the ratio of the green digital number to the sum of the red, green, blue digital numbers from a digital camera.
+Horizon: 30 days
+Latency: ~ 2 days
+  - **rcc_90** -	Red chromatic coordinate is the ratio of the Red digital number to the sum of the red, green, blue digital numbers from a digital camera.
+Horizon: 30 days
+Latency: ~ 2 days
+- `site_id` is the code for the location. See all locations where phenology data is available ([see table](https://projects.ecoforecast.org/neon4cast-ci/targets.html) where phenology is marked 1)
+- `observation` is the value for the variable being observed
+- `datetime` is the date, and if measure less than a day, the time
+
+
+```{r}
+#set download url
+url <- "https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/phenology-targets.csv.gz"
+
+# get data frame from website
+phenology_targets <- read_csv(url, show_col_types = FALSE)
+
+# preview - head shows the first six rows
+head(phenology_targets)
+
+# dim shows us how many columns and how many rows
+dim(phenology_targets)
+```
+
+
+### Filter to selected site
+
+Below, we filter the larger dataframe `phenology_targets` to a smaller one that only contains our site of interest.
+
+In this example, I use SJER because I am interested in oak woodlands in California, but feel free to change the code to a different site to see the output. (see list of sites and their IDs at the table at the end of this [link](https://projects.ecoforecast.org/neon4cast-ci/targets.html))
+
+The line used to filter contains two new parts:
+
+- a pipe, `%>%`, which takes the dataframe before it and inserts it into the function that follows it, outputting the new dataframe. This can be used to combine multiple steps, but here we only have 1 step  
+-  the `filter()` function, from the [`dplyr`](https://dplyr.tidyverse.org/reference/filter.html) package in tidyverse. This function uses a conditional statement applied to a column in your dataframe, and keeps all rows that match that condition. In this case, it will filter all rows that have 'SJER' in the column `site_id`
+
+
+```{r}
+# select your site
+my_site = "SJER"
+
+# filter by site id
+site_targets <- phenology_targets %>% filter(site_id==my_site)
+
+# preview the first six rows
+head(site_targets)
+dim(site_targets)
+
+# get a summary of the data
+summary(site_targets)
+```
+
+
+In the output, you should see only the site you filtered in the `site_id` column.
+
+🧠✍️ Based on the output, consider the following questions:
+
+- What is the time range for these observations?
+- How many missing values (NA) does it contain?
+- What is the duration?
+
+## Visualizing data
+
+We are going to use `ggplot2`, which is another tidyverse package, to visualize our data.
+
+You can read more, and see examples of chart types, [here](https://ggplot2.tidyverse.org/)
+
+The pattern to follow is:
+
+`ggplot(dataframe, aes(x, y)) + geom_charttype()`
+
+See the first example of a time series of both gcc_90 and rcc_90 below:
+
+
+```{r}
+# plot time series
+ggplot(site_targets, aes(x=datetime, y=observation, col=variable)) +
+  geom_point()
+```
+
+
+
+🧠✍️ Based on the output, consider the following questions:
+
+- What patterns do you notice?
+- What time of year do we see peak gcc90 and rcc90?
+- If you were to go back and re-run this for a different site, would you expect the same patterns?
+
+### Working with geoms to change how your data is displayed
+
+In the above plot, we created a time series scatter plot using `geom_point()`. Geoms determine how your data is displayed.
+
+💻 Try rerunning the same code as above but with `geom_line()`.
+
+Geoms can also be layered. You can use both point and line to create a time series.
+
+
+```{r, warning=F}
+# plot a time series with line
+ggplot(site_targets, aes(x=datetime, y=observation, col=variable)) +
+  geom_point() +
+  geom_line()
+```
+
+### Visualizing groups: faceting
+
+In the plot above, two groups are shown as different colors, with considerable overlap of points. To more clearly compare these two groups, we can use `facet_grid()`, which creates panels separated by a discrete variable.
+
+
+```{r, warning=F}
+# look at red and green separately - we can do this using facet_grid
+ggplot(site_targets, aes(x=datetime, y=observation, col=variable)) +
+  geom_point() +
+  facet_grid("variable")
+```
+
+### Visualizing groups: boxplots
+
+Using geoms, there are several ways to display our data to better visualize the difference between two variables, in this case `gcc_90` and `rcc_90`.
+
+In the below example, we can compare `gcc_90` and `rcc_90` as boxplots.
+
+🧠✍️ Run the code below and think about:
+- How does visualizing data as a time series and as a boxplot affect the information we gain from the visualization
+
+
+```{r, warning=F}
+# plot a boxplot
+ggplot(site_targets, aes(x=variable, y=observation, col=variable)) +
+  geom_boxplot()
+```
+
+
+### Creating time series with different x-axis
+
+The dataframe has one column for time, `datetime`, but what if we want to visualize at different temporal resolutions? We can create new columns for month, year, and day of year (doy), then use `group_by()` and `summarize()` to create new time series visualizations and gain new insight about our data.
+
+The new columns for temporal resolution are created using the [`lubridate`](https://lubridate.tidyverse.org/) package, which has functions for `month()`, `year()`, and `yday()` that take a date as input and extract the timestep.
+
+
+```{r}
+# plot time series of annual values - x-axis as month or day
+
+# will need to get new columns that are month and day of year
+site_targets$month = month(site_targets$datetime)
+site_targets$year = year(site_targets$datetime)
+site_targets$doy =yday(site_targets$datetime)
+
+# using these columns we can group and summarize
+sites_doy = site_targets %>%
+  group_by(doy, variable) %>%
+  summarize(mean_obs = mean(observation, na.rm=T))
+
+ggplot(sites_doy, aes(x=doy, y=mean_obs, col=variable))+
+  geom_line() +
+  ggtitle("mean daily values for GCC90 and RCC90")
+```
+
+Looking at daily averages within a year can give us insight to seasonal patterns.
+
+💻 Try changing from `doy` to `month` in the above code (lines 9-15 in Google Colab, or 210-217 in R)
+
+
+---
+
+## Loading climate data
+
+We are going to load more data using the `neonUtilities` R package,  using examples from [this tutorial](https://www.neonscience.org/resources/learning-hub/tutorials/neondatastackr).
+
+First we are installing and loading the package.
+
+
+```{r, warning=F}
+# run this first to install
+install.packages("neonUtilities")
+
+# load package
+
+library(neonUtilities)
+```
+
+### Load by product
+
+We are going to use the summary weather statistics (DP4.00001.001) data product. It includes daily temperatures, averaged via an algorithm that handles the quality flags etc along the way. It’s currently only available for core sites. [Read more about summary weather statistics here.](https://data.neonscience.org/data-products/DP4.00001.001)
+
+The information needed to load the product, with the function `loadByProduct()` include:
+- data ID (dpID): for our purpose this is DP4.00001.001. See a full list of data products [here](https://data.neonscience.org/data-products/explore)
+- site: we have already created the variable `my_site`
+- optionally, startdate and enddate. In the code below, objects for `start` and `end` are created based on availability from our site's GCC_90 dataframe.
+
+💻 Once you run the next code cell, check below or in your console, there will be a message: "Continuing will download files totaling approximately 1.333577 MB. Do you want to proceed y/n:", continue by typing `y`.
+
+
+```{r}
+# this may take a few minutes to download data!
+
+# set data ID
+data_id = "DP4.00001.001"
+
+# get the start and end dates for the SJER site
+# the functions below select the first and last date entry in the datetime column, then format to Year-month
+start = format(site_targets$datetime[1], "%Y-%m")
+end = format(site_targets$datetime[nrow(site_targets)], "%Y-%m")
+
+# download the summary weather statistics files - for site SJER - check your console, this may take a minute
+
+summary_weather <- loadByProduct(dpID=c(data_id),
+                          site=c(my_site),
+                          startdate=start,
+                          enddate=end,
+                          check.size=F,
+                          progress=F
+                          )
+
+# the format of this download is a list that contains metadata and data frames
+
+# lets preview the data we loaded
+str(summary_weather) # this function displays the structure of an object - it should output for each item in the list, with labels - see which are data frames
+```
+
+
+The output of the `str()` function lists the names of the dataframe, the dimension of each dataframe, and the column names and data types. It is a long list!
+
+To simplify for our purposes, we are going to only use the daily temperature. Below we start a new data frame that takes the daily temperature from the larger list.
+
+
+```{r}
+# we are looking for daily temperatures, wss_daily_temp
+
+# let's create a data frame for the daily observations and preview it
+
+neon_daily_temp = summary_weather$wss_daily_temp
+
+# now we have a data frame instead of a list, lets preview that - there are several ways to do this:
+
+# print first 6 rows
+head(neon_daily_temp)
+```
+
+
+```{r}
+# see column names
+colnames(neon_daily_temp)
+```
+
+### Explore temperature dataframe
+
+From the preview, we can see our dataframe contains a few columns of interest:
+
+- date
+- wssTempTripleMean
+- wssTempTripleMaximum
+- wssTempTripleMinimum
+
+We can select these columns are run `summary()` to get descriptive statistics.
+
+
+```{r}
+# summary statistics of columns we are interested in
+neon_daily_temp %>%
+  select(date, wssTempTripleMean, wssTempTripleMaximum, wssTempTripleMinimum)  %>%
+  summary()
+```
+
+Next we can plot daily values to see the entire time series. In this example, we are layering different geoms and changing the y variable to show the mean, minimum, and maximum temperature together on the same plot. 
+
+
+```{r, warning=F}
+# create a plot
+ggplot(neon_daily_temp,
+       aes(x=date, y=wssTempTripleMean, col="tmean")) +
+  geom_point() +
+  geom_point(aes(x=date, y=wssTempTripleMinimum, col="tmin")) +
+  geom_point(aes(x=date, y=wssTempTripleMaximum, col="tmax")) +
+  labs(title="Daily triple aspirated temperature observations",
+        x="date",
+        y="temperature (deg C)")
+```
+
+## Join GCC_90 data with temperature data
+
+We are going to use the `join` function to put together two data frames - `site_targets` (which includes the gcc and rcc data), and `neon_daily_temp` (which is the daily temperature data we downloaded above). In order to use a join function, we need a column in each data frame with common keys and the same column name, in this case we will use `date` column.  
+
+The formula is:
+
+`new_dataframe <- full_join(dataframe1, dataframe2, by='key')`
+
+Read more about `join` functions [here](https://dplyr.tidyverse.org/reference/mutate-joins.html).
+
+
+```{r}
+# first need to make sure sites has date col
+site_targets$date <- site_targets$datetime
+
+# full join includes all columns from both data frames
+neon_join <- full_join(site_targets, neon_daily_temp, by='date')
+
+# preview data frame
+head(neon_join)
+```
+
+Note the columns for our temperature statistics are all NA - this is because the gcc data starts in 2016 but the temperature data doesn't start until 2018.
+
+Next we can explore plots for any patterns.
+
+I want to see a plot of both temperature and GCC. To do this, I am loading and using the library `patchwork`, which allows you to combine ggplot visualizations once they have been saved as objects. In the example below, I plot daily temperature on top of daily GCC. 
+
+```{r, warning=F}
+# get the package patchwork
+install.packages('patchwork')
+library(patchwork)
+
+
+# create temperature time series plot
+temp_plot = neon_join %>%
+  filter(year>2018) %>% # filter past the dates with NA
+  ggplot(aes(y=wssTempTripleMean,x=date)) +
+    geom_point(col="red") + geom_line() + # plot daily tmin
+    theme_bw() + # makes background white
+    ggtitle("minimum daily temperature") # add title
+
+# create gcc90 time series plot
+gcc90_plot = neon_join %>%
+  filter(variable=="gcc_90") %>%
+  filter (year>2018) %>% # filter past dates with NA
+  ggplot(aes(y=observation, x=date)) +
+    geom_point(col="lightgreen") + geom_line() + # plot daily gcc
+    theme_bw() + # makes background white
+    ggtitle("daily GCC 90") # add title
+
+# display plots with temp on top of gcc90
+temp_plot/gcc90_plot
+```
+
+🧠✍️ What patterns are you noticing? Does there look like there's a relationship between temperature and greenness?
+
+---
+
+To further explore a relationship between two variables, we can create a scatter plot.
+
+
+```{r, warning=F}
+ggplot(neon_join, aes(x=wssTempTripleMean, y=observation, col=variable)) + # plot daily tmin v. observation, colored and faceted by variable
+  geom_point(alpha=0.25) + # alpha sets the opacity
+  geom_smooth(method='lm') + # add a linear smoothing
+  facet_grid(.~variable) + # facet by variable
+  theme_bw() # makes background white
+
+```
+
+🧠✍️ What patterns are you noticing? Does GCC90 or RCC90 appear to have a stronger relationship with minimum daily temperature?
+
+## Saving your data
+
+This is an important step because we have loaded data to our working environment, but don't have it saved to our computer. We can save `neon_daily_temp` so that we don't need to repeat the process above of downloading and subsetting this dataframe.
+
+The code below automatically creates a name for a CSV file, then saves your dataframe. Note that if working in Google Colab, you will need to download this to your desktop. 
+
+
+```{r, eval=F}
+# save dataframe to computer so don't have to download again
+
+filename = paste(my_site, data_id, "NEON.csv", sep="_")
+
+# once you save it you should be able to read it in again using the function read_csv()
+write.csv(neon_daily_temp, filename)
+
+# save the joined data too 
+write.csv(neon_join,"gcc_neon_join.csv", row.names = F)
+
+# after you run this, see the file on the left hand side if working in google colab, be sure to download to computer
+
+```
+
+## Review Part 1
+
+1. Installed and loaded libraries including `tidyverse`
+2. Downloaded and explored daily phenology data from Ecological Forecasting challenged
+3. Filtered data by site 
+4. Visualized data with `ggplot`, tried different geoms 
+5. Downloaded, subset, and explored temperature data from `neonUtilities` package
+6. Joined phenology and temperature data to plot 
+
+# Extra step: Creating Presentation ready plots
+
+So far we have used visualization for our own data exploration, but when including plots on a poster, it's important to 'clean' up the plots to show everything clearly with contextual information.
+
+Important things to consider include:
+
+- color (does it clearly represent story, is it color-deficient friendly)
+- line size
+- dimensions of photo (to be printed on a 48x36in poster)
+- text size
+- clearly labeled axis (include units, legend)
+
+See more about what makes a good data visualization [here](https://drive.google.com/file/d/1AcN8bVmAtWfQ_Zb-EqZs2FmK1RZ8mkOY/view).
+
+Below is an example of improving the time series of temperature. First is the original plot from above, with tmin and tmax as variables. Key improvements that were made to create a 'poster ready' plot are shown, along with the updated plot.
+
+
+```{r, warning=F}
+ggplot(neon_daily_temp) +
+  geom_point(aes(x = date, y = wssTempTripleMinimum, col = "tmin")) +
+  geom_point(aes(x = date, y = wssTempTripleMaximum, col = "tmax"))
+```
+
+To update this plot, a number of changes to settings can be made using ggplot, often involving specific functions or parameters. This includes changing colors, adjusting the size of data, axis, and text, and the overall look. To see examples and learn more about the different options, see the [R Graphics Cookbook](https://r-graphics.org/index.html) or the [ggplot website](https://ggplot2.tidyverse.org/).
+
+## Using generative AI as a tool
+
+Along with using the ggplot website and book links to find how to change settings, we can use generative AI to update our plot. Here is an example for the temperature time series, using Claude.ai, and giving this prompt: 
+
+"I am creating a plot in R with ggplot for a poster that is 48x36 inches. I need the plot to have text that is large enough to read from 3 ft away, clear points and axis. Here is my starting code:
+
+`ggplot(minute_daily_avg) +
+ geom_point(aes(x=date, y=tmin, col="tmin")) +
+ geom_point(aes(x=date, y=tmax, col="tmax"))`
+
+Can you add a theme, make the colors red for tmax and blue for tmin, make the text larger, and clearly label axis that temperature is in degrees C?"
+
+Here is the output: 
+
+Key improvements:
+
+- Added blue for minimum temperature and red for maximum temperature
+- Increased the point size to 3 for better visibility
+- Added clear axis labels with temperature units (°C)
+- Added a descriptive title
+- Applied theme_minimal() for a clean look
+- Significantly increased text sizes throughout (24-32pt)
+- Added better spacing and grid lines for readability
+- Positioned the legend at the bottom for better use of space
+- Used proper, descriptive legend labels
+
+
+```{r, warning=F}
+# Create the plot and assign it to a variable
+temperature_plot <- ggplot(neon_daily_temp) +
+  geom_point(aes(x = date, y = wssTempTripleMinimum, col = "Minimum Temperature"), size = 1) +
+  geom_point(aes(x = date, y = wssTempTripleMaximum, col = "Maximum Temperature"), size = 1) +
+  scale_color_manual(values = c("Minimum Temperature" = "blue",
+                                "Maximum Temperature" = "red"),
+                     name = "Temperature Type") +
+  labs(x = "Date",
+       y = "Temperature (°C)",
+       title = "Daily Temperature Variation") +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 8),
+    axis.title = element_text(size = 9, face = "bold"),
+    axis.text = element_text(size = 8),
+    legend.text = element_text(size = 8),
+    legend.title = element_text(size = 9, face = "bold"),
+    plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
+    panel.grid.major = element_line(color = "gray80", linewidth = 0.25),
+    panel.grid.minor = element_line(color = "gray90", linewidth = 0.15),
+    legend.position = "bottom"
+  )
+
+temperature_plot
+
+```
+
+If using generative AI, it's important to look through the output code to make sure you can understand what it is doing. In this case, it generated text to update the colors, labels, and parameters inside theme() to change size and look of the overall plot.
+
+You can edit the above code to make it more specific to your plot - change the title and labels, or colors!
+
+
+## Saving the plot
+
+Be sure to save your plot by running the code below.
+If you are working in Google colab, you will also need to download it to your personal computer, or copy and paste.
+
+
+
+```{r, eval=FALSE}
+# Save the plot with ggsave
+ggsave(filename = "temp_plot_4x6.png",
+       plot = temperature_daily_plot,
+       width = 6,
+       height = 4,
+       units = "in",
+       dpi = 300)
+```
+
+
+# More resources to continue learning about NEON data and phenology 
+
+Other tutorials that may be of interest:
+
+- [NDVI timeseries](https://www.neonscience.org/resources/learning-hub/tutorials/aop-gee-ndvi-timeseries)
+- [Diel carbon fluxes](https://www.neonscience.org/resources/learning-hub/tutorials/eddy-diel-cycle#3-plotting-the-diel-cycle-of-co2-fluxes)
+- [Relating reflectance indices](https://www.neonscience.org/resources/learning-hub/tutorials/flux-footprint-ndvi)
+- [tutorial on working with eddy flux data](https://www.neonscience.org/resources/learning-hub/tutorials/eddy-data-intro)
+- Other phenology related [teaching modules](https://www.neonscience.org/resources/learning-hub/teaching-modules)

@@ -252,7 +252,7 @@ Use `full_join()` to combine with GCC phenology.
 
 ```{r snow}
 
-snow <- read.csv("../data/TMR_snotel_pheno.csv")
+snow <- read.csv("TMR_snotel_pheno.csv")
 
 # join with transition dates of spring gcc 
 
@@ -266,7 +266,10 @@ head(snow_gcc_join)
 # plot 
 ggplot(snow_gcc_join, aes(x=max_swe, y=max_gcc)) + geom_point()
 
-ggplot(snow_gcc_join, aes(x=max_swe_doy, y=gcc_yday50)) + geom_point()
+ggplot(snow_gcc_join, aes(x=max_swe_doy, y=gcc_yday50)) + geom_point() +
+  facet_grid('year')
+
+
 
 
 ```

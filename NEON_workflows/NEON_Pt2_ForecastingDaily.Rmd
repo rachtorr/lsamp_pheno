@@ -1,0 +1,146 @@
+---
+title: "Part 2: Forecast daily values for NEON Forecasting Challenge"
+output: html_document
+---
+
+# Intro 
+
+Reference forecasting challenge
+
+https://projects.ecoforecast.org/neon4cast-docs/Phenology.html
+
+Reminder: GCC is the green chromatic coordinate, and `gcc_90` is the 90th percentile of the gcc within a region of interest.
+
+introduce NEON phenology forecasting
+
+and packages
+
+
+```{r}
+#install.packages("neon4cast")
+install.packages("scoringRules")
+
+#library(neon4cast)
+library(scoringRules)
+
+install.packages("forecast")
+library(forecast)
+
+library(tidyverse)
+```
+
+Workflow steps for our forecast:
+
+1. Set a forecast date by defining when it will start. In our case we are selecting a date mid-way through our data set so that we can compare. If submitting to NEON forecasting challenge, set the date as `forecast_date = Sys.Date()` to get a real-time application.
+2. Define our model. In this case we will use a linear model as an example.
+3. Use model to predict, visualize, and score
+4. Optionally, submit to NEON Forecasting challenge  
+
+
+```{r}
+
+neon_join = read.csv("gcc_neon_join.csv")
+
+# date when forecast will start
+forecast_date = lubridate::as_date("2022-01-01")
+
+# split our data frame neon_join into model values and prediction values
+# past values for model
+past_model = neon_join %>%
+  filter(date < forecast_date) %>%
+  filter(variable == "gcc_90") %>%
+  rename(gcc_90 = observation)
+
+# future values for prediction
+fut_pred = neon_join %>%
+  filter(date >= forecast_date) %>%
+  filter(variable == "gcc_90") %>%
+  rename(gcc_90 = observation)
+
+
+# create linear model based on past data
+# try with only mean temperature
+fit_temp_mean <- lm(data=past_model, gcc_90~wssTempTripleMean)
+# try with mean temperature and day of year
+fit_temp_mean_doy <- lm(data=past_model, gcc_90~wssTempTripleMean+doy)
+
+# see summary of model
+summary(fit_temp_mean)
+
+summary(fit_temp_mean_doy)
+```
+
+
+
+
+
+```{r, warning=F}
+# fit the model to the 'future' dataframe
+fut_pred <- fut_pred %>%
+  mutate(pred_temp_mean = predict.lm(fit_temp_mean, tibble(wssTempTripleMean)),
+        pred_temp_mean_doy = predict.lm(fit_temp_mean_doy, tibble(wssTempTripleMean, doy))) %>% 
+  mutate(date = as.Date(date))
+
+# visualize fit for both predictions
+ggplot(fut_pred) +
+  geom_point(aes(x=date, y=gcc_90, col="obs"), col='grey', alpha=0.5) +
+  geom_line(aes(x=date, y=pred_temp_mean, col="temp")) +
+  geom_line(aes(x=date, y=pred_temp_mean_doy, col="temp+doy")) +
+  labs(col="Model", y="GCC90")
+
+```
+
+
+```{r}
+# score forecast
+# using continuous Ranked probability Score
+
+
+fut_pred_crop = fut_pred %>% filter(!is.na(pred_temp_mean))
+
+# CRPS for normal distribution (most common for linear models)
+# If you have prediction standard deviations/errors
+calculate_crps_normal <- function(observed, predicted, pred_sd) {
+  crps_norm(y = observed, mean = predicted, sd = pred_sd)
+}
+
+# CRPS for point forecasts (assuming normal distribution with estimated variance)
+calculate_crps_point <- function(observed, predicted) {
+  # Estimate residual standard deviation from your model
+  residuals <- observed - predicted
+  residual_sd <- sd(residuals, na.rm = TRUE)
+
+  # Calculate CRPS assuming normal distribution
+  crps_norm(y = observed, mean = predicted, sd = residual_sd)
+}
+
+fut_pred_crop$crps = calculate_crps_point(fut_pred_crop$gcc_90, fut_pred_crop$pred_temp_mean_doy)
+
+ggplot(fut_pred_crop) +
+  geom_point(aes(x=date, y=crps, col="crps")) + ggtitle("Continuous Ranked Probability Score")
+
+```
+    
+
+
+
+```{r}
+# use forecast package to get accuracy scores
+accuracy(fut_pred$pred_temp_mean, fut_pred$gcc_90)
+accuracy(fut_pred$pred_temp_mean_doy, fut_pred$gcc_90)
+```
+
+
+
+
+Submit to forecasting challenging
+
+
+
+```{r}
+# name your team / model
+
+# connect to neon4cast
+
+# submit
+```
