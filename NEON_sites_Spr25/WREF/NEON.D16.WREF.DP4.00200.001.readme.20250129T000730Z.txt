@@ -1,0 +1,285 @@
+This data package was produced by and downloaded from the National Ecological Observatory Network (NEON). NEON is
+funded by the National Science Foundation (Awards 0653461, 0752017, 1029808, 1138160, 1246537, 1638695, 1638696,
+1724433) and managed cooperatively by Battelle. These data are provided under the terms of the NEON data policy at
+https://www.neonscience.org/data-policy.
+
+DATA PRODUCT INFORMATION
+------------------------
+
+ID: NEON.DOM.SITE.DP4.00200.001
+
+Name: Bundled data products - eddy covariance
+
+Description: Bundle of eddy-covariance data products, including related meteorological and soil data products.
+
+NEON Science Team Supplier: Terrestrial Instrument System
+
+Abstract: Net surface-atmosphere exchange, or “flux” quantifies how much heat, water (H2O) and carbon dioxide (CO2) are transferred between an ecosystem and the atmosphere. Fluxes are useful in a variety scientific applications, including to study ecosystem processes, to interpret and calibrate satellite observations of the earth system, and to constrain ecosystem and earth system models. One of the most direct approaches to observe the net surface-atmosphere exchange is the in-situ [eddy-covariance method](https://youtu.be/CR4Anc8Mkas). Calculation of the net surface-atmosphere exchange involves the estimation of at least two major terms (assuming horizontally homogenous surface conditions): the turbulent flux and the storage flux. In addition, stable isotope measurements of CO2 and H2O within and above the ecosystem canopy can support the subsequent partitioning of the net surface-atmosphere exchange into ecosystem constituent fluxes. For example, partitioning CO2 into photosynthesis and respiration, or evaporation and transpiration in the case of H2O.
+
+For data product and algorithm details please see [NEON.DOC.004571](http://data.neonscience.org/documents); in short: this data product bundle contains derived eddy-covariance data products and associated metadata in HDF5 format. Each file contains metadata about the file structure, table formats, and attributes. For more information on using HDF5 files, please visit The HDF Group website at https://www.hdfgroup.org/. Data, quality flags and metrics (qfqm), and uncertainty metrics (ucrt) are currently provided in folders using the following naming convention within the HDF5 file structure: `data_product_level`/`type_of_data_available`/`data_product_abbreviation` (e.g., “dp01/data/soni”). Empty folders within the file structure are being incrementally filled in future publications. The data products embedded in this bundle currently include the following:
+
+| Data Product | Type of data available | Abbreviation | Temporal Resolution |
+| ------------ | ---------------------- | ------------ | ------------------- |
+| DP1.00002 Single aspirated air temperature | data, qfqm, ucrt | tempAirLvl | 1-min, 30-min |
+| DP1.00003 Triple aspirated air temperature | data, qfqm, ucrt | tempAirTop | 1-min, 30-min |
+| DP1.00007 3D wind speed, direction and sonic temperature | data, qfqm, ucrt | soni | 1-min, 30-min |
+| DP1.00010 3D wind attitude and motion reference | data, qfqm, ucrt | amrs | 1-min, 30-min |
+| DP1.00034 CO2 concentration - turbulent | data, qfqm, ucrt | co2Turb | 1-min, 30-min |
+| DP1.00035 H2O concentration - turbulent	| data, qfqm, ucrt | h2oTurb | 1-min, 30-min |
+| DP1.00036 Atmospheric CO2 isotopes | data, qfqm, ucrt | isoCo2 | 9-min, 30-min |
+| DP1.00037 Atmospheric H2O isotopes | data, qfqm, ucrt | isoH2o | 9-min, 30-min |
+| DP1.00099 CO2 concentration - storage | data, qfqm, ucrt | co2Stor | 2-min, 30-min |
+| DP1.00100 H2O concentration - storage | data, qfqm, ucrt | h2oStor | 2-min, 30-min |
+| DP2.00008 CO2 concentration rate of change | data, qfqm | co2Stor | 30-min |
+| DP2.00009 H2O concentration rate of change | data, qfqm | h2oStor | 30-min |
+| DP2.00024 Temperature rate of change | data, qfqm | tempStor  | 30-min |
+| DP3.00008 Temperature rate of change profile | data, qfqm | tempStor  | 30-min |
+| DP3.00009 CO2 concentration rate of change profile | data, qfqm | co2Stor  | 30-min |
+| DP3.00010 H2O concentration rate of change profile | data, qfqm | h2oStor  | 30-min |
+| DP4.00002 Sensible heat flux | data, qfqm | fluxTemp  | 30-min |
+| DP4.00007 Momentum flux | data, qfqm | fluxMome  | 30-min |
+| DP4.00067 Carbon dioxide flux | data, qfqm | fluxCo2  | 30-min |
+| DP4.00137 Latent heat flux | data, qfqm | fluxH2o  | 30-min |
+| DP4.00201 Flux footprint characteristics | data, qfqm | foot  | 30-min |
+
+Latency:
+Data collected in any given month are published during the second full week of the following month.
+
+Brief Design Description: All terrestrial NEON sites are equipped with a tower and sensors that collect turbulent flux measurements at the tower top. The CSAT-3 sonic anemometer (Campbell Scientific Inc., Logan, Utah, USA) records 3-dimensional wind speed and wind direction data at 20 Hz. The attitude and motion reference system (AMRS, Xsens North America Inc., model MTI-300-2A5G4; Culver City, California, USA) tracks the motion of the CSAT-3 sonic anemometer and records pitch, roll and yaw data at 40 Hz. The LI-7200 and LI-7200RS gas analyzers (Li-Cor Inc., Lincoln, Nebraska, USA) records CO2 and H2O concentration at 20 Hz. These dp00 raw data are used to generate 1-min and 30-min dp01 descriptive statistics data products, as well as 30-min dp04 turbulent flux data products.
+
+The storage flux system consists of a suite of sensors that record temperature, CO2 and H2O along the tower vertical profile. The air temperature profile is measured at 1 Hz with aspirated temperature sensors (MetOne Instruments, Inc., model 076B-7388; Grant Pass, Oregon, USA). In addition, air samples from all vertical measurement levels on the tower are drawn and delivered to a gas analyzer (Li-Cor, Inc., model LI-840A and LI-850; Lincoln, Nebraska, USA) in the instrument hut for analysis. The LI840A and LI850 gas analyzers record the CO2 and H2O concentration at 1 Hz. These data are used to generate 2-min and 30-min dp01 descriptive statistics data products, which are used to further produce 30-min dp02 temporally interpolated data products, dp03 spatially interpolated data products, and derived dp04 storage flux data products.
+
+Sensors for stable isotopic measurements are located inside the instrument hut. Air samples along the tower vertical profile are drawn and delivered to the sensors for analysis. The PICARRO G2131-i CO2 isotopic analyzer records the CO2 concentration and delta 13C at ~1 Hz; the PICARRO L2130-i H2O isotopic analyzer records the H2O concentration and delta 18O and 2H at ~1 Hz. These data are used to generate 9-min and 30-min dp01 descriptive statistics data products.
+
+For command, control and configuration details please see [NEON.DOC.000456](http://data.neonscience.org/documents).
+
+Brief Study Area Description: Data are collected at all terrestrial sites, along the vertical tower profile from the ground to the tower top above the canopy. These data are used to determine the net ecosystem exchange of heat and gases (CO2, H2O, etc.) between the atmosphere and the ecosystem of interest.
+
+Sensor(s): LI-COR - LI7200 gas analyzer; Campbell Scientific CSAT-3 3-D Sonic Anemometer; Xsens North America Inc. MTI-300-2A5G4 Attitude Heading Reference System; LI-COR - LI840A; PICARRO - G2131-i isotopic CO2 analyzer; PICARRO - l2130-i isotopic H2O analyzer
+
+Keywords: CO2 mixing ratio, CO2 molar fraction, attitude, carbon dioxide (CO2), carbon-13 (13C), eddy covariance (EC), energy balance, evapotranspiration (ET), flux, footprint, friction velocity, hydrogen-2 (2H), isotopes, latent heat, momentum flux, motion, net ecosystem exchange (NEE), net surface atmosphere exchange (NSAE), oxygen-18 (18O), profile, sensible heat, stable isotopes, storage, turbulence, water (H2O) mixing ratio, water (H2O) molar fraction, water (H2O) vapor, wind direction, wind speed
+
+
+QUERY INFORMATION
+-----------------
+
+Date-Time for Data Publication: 2025-01-23 18:10 (UTC)
+Start Date-Time for Queried Data: 2024-06-30 00:00 (UTC)
+End Date-Time for Queried Data: 2024-07-01 00:00 (UTC)
+
+Site: WREF
+Geographic coordinates (lat/long datum): 
+Domain: D16
+
+
+DATA PACKAGE CONTENTS
+---------------------
+
+This folder contains the following documentation files:
+- This readme file: NEON.D16.WREF.DP4.00200.001.readme.20250129T000730Z.txt
+- Term descriptions, data types, and units: NEON.D16.WREF.DP4.00200.001.variables.20250123T181036Z.csv
+- Machine-readable metadata file describing the data package: NEON.D16.WREF.DP4.00200.001.EML.20240630-20240701.20250129T000730Z.xml.
+This file uses the Ecological Metadata Language (EML) schema. Learn more about this specification and tools to parse
+it at https://www.neonscience.org/about/faq.
+- Other related documents are available such as engineering specifications, field protocols, and data processing 
+documentation. Please visit https://data.neonscience.org/data-products/DP4.00200.001 for more information.
+
+
+This folder also contains 1 data files:
+NEON.D16.WREF.DP4.00200.001.nsae.2024-06.basic.20250123T173549Z.h5 
+
+Basic download package definition: The basic download package includes the data product, summary statistics, footprint model inputs, and footprint statistics.
+
+Expanded download package definition: The expanded download package includes the basic package information plus half-hourly footprint weight matrices, quality metrics for dp01 quality assessment and quality control analyses.
+
+
+FILE NAMING CONVENTIONS
+-----------------------
+
+NEON data files are named using a series of component abbreviations separated by periods. File naming conventions
+for NEON data files differ between NEON science teams. A file will have the same name whether it is accessed via
+NEON's data portal or API. Please visit https://www.neonscience.org/data-formats-conventions for a full description
+of the naming conventions.
+
+ISSUE LOG
+----------
+
+This log provides a list of issues identified during data collection or processing, prior to publication
+of this data package. For a more recent log, please visit this data product's detail page at
+https://data.neonscience.org/data-products/DP4.00200.001.
+
+Issue Date: 2021-01-20
+Issue: The LI-7200 intake tube heater is not functioning properly at ~1/2 NEON sites. A data quality assessment is in progress.
+    Date Range: 2016-12-01 to 2021-01-20
+    Location(s) Affected: Under investigation
+Resolution Date: 
+Resolution: 
+
+Issue Date: 2021-01-20
+Issue: We have discovered multiple instances where timestamps became out of sync between the Picarro G2131 and L2130 instruments and computers, and what was assigned to the data points upon transmission to NEON Headquarters. This has resulted in offsets ranging from 20 seconds to 12 minutes in data products DP1.00036 Atmospheric CO2 isotopes and DP1.00037 Atmospheric H2O isotopes. 
+
+The raw data values output from instruments are reliable (except for the timestamp) but aggregated values based on the timestamps at the L1 data product level are impacted.
+
+The affected data for DP1.00036 Atmospheric CO2 isotopes have been manually flagged, we are working on algorithms to detect the offset in DP1.00037 Atmospheric H2O isotopes from the Picarro L2130. Please use the data portal contact form for further inquiries; select DP1.00036 or DP1.00037 in the Data Product dropdown list and include the term “PRB0040670“ in the body of your request.
+    Date Range: 2016-12-01 to 2022-01-31
+    Location(s) Affected: See issue logs for data products DP1.00036 Atmospheric CO2 isotopes and DP1.00037 Atmospheric H2O isotopes
+Resolution Date: 
+Resolution: 
+
+Issue Date: 2021-01-20
+Issue: Currently, the the high frequency spectral correction is applied using  a simplified assumption of peak spectral frequency of 0.1 Hz. This can result in using a simplified -5/3 slope for turbulence decay for correcting the spectra. This is inconsistent with the methods referenced in the EC Composite ATBD and will be updated to match what is in the ATBD in a future code version.
+    Date Range: 2021-01-20 to 2022-01-31
+    Location(s) Affected: All NEON TIS sites
+Resolution Date: 
+Resolution: 
+
+Issue Date: 2022-01-22
+Issue: We have observed spikes it the corrected turbulent CO2 concentration data product due to poor quality daily validations being used in data correction. We perform an evaluation regression to assess whether the data correction was successful or not, but in cases where the evaluation regression returned missing values, this data check did not work as designed. For CO2 concentration data, please use the isoCo2 CO2 concentration (also in the bundled HDF5 file). We are currently investigating if there are quality concerns in the CO2 flux data. Once our investigation is complete, we will provide a list of affected timestamps. This issue is present in the 2022 data release.
+    Date Range: 2017-01-01 to 2022-01-22
+    Location(s) Affected: TBD, most NEON TIS sites have been occasionally affected for short periods of time.
+Resolution Date: 
+Resolution: 
+
+Issue Date: 2022-01-22
+Issue: All data were reprocessed with the latest version of eddy4R and have been republished. The LI-7200 IRGA drift correction code was updated to perform a benchmark evaluation to determine if each day’s validation is suitable for correcting CO2 concentration data. Coefficients and quality information from this evaluation were added to the expanded file. Ancillary turbulent exchange system quality flags (qf) were changed to quality indicators (qi) to reduce data over flagging. The atmospheric pressure spike test was changed to a qi until additional testing of parameters can be performed. Quality flags from the LI7200 were added to the qfqm determination for the tempAir data product because water vapor data from the LI-7200 are used in the conversion of sonic temperature to air temperature. The step test was removed from Picarro data products.  UTC time offset and eddy4R code version metadata were added to the HDF5 file. Small changes to QAQC procedures were made during reprocessing to refine data flagging and science review flags were raised where necessary.
+    Date Range: 2022-01-22 to 2022-01-22
+    Location(s) Affected: All NEON TIS sites
+Resolution Date: 
+Resolution: 
+
+Issue Date: 2022-01-22
+Issue: eddy4R processing code was updated during reprocessing to refine quality flag and quality control parameters. We have added code version metadata to the HDF5 files to ensure traceability of these code updates. This metadata is in the HDF5 attributes at the file level under the term SciVer. Please use the data portal contact form for further inquiries regarding data reprocessing and code changes.
+    Date Range: 2022-01-22 to 2022-01-22
+    Location(s) Affected: All NEON TIS sites
+Resolution Date: 
+Resolution: 
+
+Issue Date: 2022-01-23
+Issue: Excessive data flagging has been observed in the CO2 storage flux at two sites, WREF and CLBJ. At WREF, this is due to the return interval of sampling at each tower level exceeding the time period used for calculating storage. This is due to the time it takes for the Picarros and LI840/850 to sample all 8 levels. We are currently working to determine a solution. At CLBJ, the cause of the data flagging is under investigation.
+    Date Range: 2022-01-23 to 2022-01-23
+    Location(s) Affected: WREF, CLBJ
+Resolution Date: 
+Resolution: 
+
+Issue Date: 2023-02-23
+Issue: A code issue led to sonic anemometer data not being excluded when a sensor diagnostic flag was raised (e.g. during rain events). The majority of these data are flagged, but some spikes in the data remain unflagged where the affected data make up less than 10 percent of the total data points within an averaging interval. Affected data products are 3D wind speed and temperature, sensible heat flux, latent heat flux, CO2 flux, and momentum flux. A code fix has been completed and data are currently being reprocessed and republished.
+    Date Range: 2022-09-01 to 2022-11-30
+    Location(s) Affected: All NEON TIS sites
+Resolution Date: 2023-02-28
+Resolution: Data have been reprocessed and republished
+
+Issue Date: 2021-01-20
+Issue: Frequent pump failures have led to measurement level outages of the storage profile system, as well as outages of the LI-840 IRGA. We are currently evaluating a new pump that we hope will be more reliable, as well as improving repair protocols for the existing pump. Supply chain issues led to increased pump outages in late 2021.
+    Date Range: 2016-12-01 to 2022-01-31
+    Location(s) Affected: All NEON TIS sites
+Resolution Date: 2023-01-31
+Resolution: A strategy was developed to repair failed pumps after the currently used pump became obsolete and unavailable for purchase. A new pump model has been selected and  will be installed at sites as needed.
+
+Issue Date: 2021-01-20
+Issue: Data missing from one tower level causes frequent storage data flagging. Storage values are computed as long as there are at least two tower measurement levels producing data, but those with less than a full set of measurement levels will have a final quality flag raised. This is a common problem due to pump failures and is a significant source of flagged CO2 and H2O L2-L4 storage and L4 NSAE data.
+    Date Range: 2016-12-01 to 2022-01-31
+    Location(s) Affected: All NEON TIS sites
+Resolution Date: 2023-01-23
+Resolution: Processing code was updated to allow storage flux to be calculated with data missing from one tower level. This changed followed a leave out analysis to confirm minimal impact on data quality and discussion with our Technical Working Group.
+
+Issue Date: 2022-09-12
+Issue: Severe flooding destroyed several roads into Yellowstone National Park in June 2022, making the YELL and BLDE sites inaccessible to NEON staff. Preventive and corrective maintenance were not able to be performed, nor was the annual exchange of sensors for calibration and validation. While automated quality control routines are likely to detect and flag most issues, users are advised to review data carefully.
+    Date Range: 2022-06-12 to 2022-10-31
+    Location(s) Affected: YELL
+Resolution Date: 2022-10-31
+Resolution: Normal operations resumed on October 31, 2022, when the National Park Service opened a newly constructed road from Gardiner, MT to Mammoth, WY with minimal restrictions. For more details about data impacts, see Data Notification https://www.neonscience.org/impact/observatory-blog/data-impacts-neons-yellowstone-sites-yell-blde-due-catastrophic-flooding-0
+
+Issue Date: 2022-05-02
+Issue: Due to an issue with publication, there is an empty duplicate file included in the bundled eddy-covariance  download package for March 2022 at all sites. Please disregard the empty file. The proper file will always have a more recent timestamp in the file name, so you can use this to select the correct file if accessing the data programmatically.
+    Date Range: 2022-04-25 to 2022-05-16
+    Location(s) Affected: All NEON TIS sites
+Resolution Date: 2022-05-20
+Resolution: The publication issue was resolved and empty duplicate files are no longer in the download package.
+
+Issue Date: 2021-01-20
+Issue: We have observed smaller than expected cross-wind spread in footprint statistics, along with lobes in the weight matrices. We are currently investigating if this is due to a code or data quality issue.
+    Date Range: 2016-12-01 to 2021-01-20
+    Location(s) Affected: All NEON TIS sites
+Resolution Date: 2022-01-22
+Resolution: After a data review, this does not appear to be a widespread data quality concern.
+
+Issue Date: 2021-01-20
+Issue: Valve issues have led to sampling and validation not working properly in some situations, which results in missing data. For non-NaN data points, there are no resulting data quality concerns from this issue. This can cause the profile sampling to become stuck on one measurement level for longer than expected, in this case the correct sampling level is reflected in the data file.
+    Date Range: 2016-12-01 to 2021-01-20
+    Location(s) Affected: Currently under investigation, see issue log for affected data products for details about specific occurrences
+Resolution Date: 2022-01-22
+Resolution: This is being addressed going forward through increased data monitoring and will primarily be apparent in pre-2021 data.
+
+Issue Date: 2021-01-20
+Issue: We are currently troubleshooting reference gas metadata values that appear mismatched with the gas cylinders is deployed in the field. This could be due to information in the database or problems with physical or database installations.  Please use the data portal contact form for further inquiries; select the data product of interest in the Data Product dropdown list and include the term “PRB0040758“ in the body of your request.
+    Date Range: 2016-12-01 to 2021-01-20
+    Location(s) Affected: Under investigation
+Resolution Date: 2022-01-22
+Resolution: Many of these instances should be resolved in the newly reprocessed dataset as of January 2022. Please use the data portal contact form if there are any additional inconsistencies in reference gas metadata detected.
+
+Issue Date: 2021-01-11
+Issue: Safety measures to protect personnel during the COVID-19 pandemic resulted in reduced or canceled maintenance activities for extended periods at NEON sites. Data availability and/or quality may be negatively impacted during this time.
+
+In addition, the annual refresh of sensors and data acquisition systems (DAS) did not occur according to the typical 1-year schedule for many sites. The annual refresh is where freshly calibrated and verified sensors and DAS replace the units in the field.
+    Date Range: 2020-03-23 to 2021-12-31
+    Location(s) Affected: ALL
+Resolution Date: 2021-12-31
+Resolution: NEON reviewed data from all sites and time periods potentially impacted by COVID-19 safety precautions to identify and manually flag suspect data that escaped automated quality tests. Suspect data are indicated by the final quality flag in the data files, which should be used to inform data filtering prior to use. 
+
+Currently, there are no quality flags indicating lack of conformance to an annual sensor refresh interval, but these are in development. Data during this time period should be treated as valid unless marked suspect by other quality flags.
+
+Issue Date: 2020-11-05
+Issue: The full timeseries of Bundled eddy covariance data products is being reprocessed with the most recent algorithms and quality control thresholds to improve overall data coverage and quality, and to homogenize file contents and structure through time. The first publication of reprocessed data has now occurred, and covers the beginning of data collection to the end of 2019 at all sites except BLAN, GRSM, and HEAL. These sites, as well as all 2020 data, will be published as processing completes. We expect this to occur before the end of the year. Reprocessed data can be identified by the date embedded in the file name of each downloaded HDF5 file. Dates after October 1st 2020 indicate reprocessed data. Please use the data portal contact form for further inquiries regarding data reprocessing and publication.
+    Date Range: 2020-10-26 to 2020-12-31
+    Location(s) Affected: All NEON TIS sites
+Resolution Date: 2020-11-05
+Resolution: Informational log only.
+
+Issue Date: 2020-02-10
+Issue: We have identified issues with infrared gas analyzer pressure data stream mapping processed through October 28, 2019 (irrespective of data collect date). This led to differential pressure (Head Pressure) being subtracted from Box Pressure and accounted for twice when calculating Total Pressure. This problem affects the following data products and all previously processed site-months.
+
+H2O concentration – turbulent (DP1.00035.001)
+CO2 concentration – turbulent (DP1.00034.001)
+Carbon dioxide flux (DP4.00067.001)
+Latent heat flux (DP4.00137.001)
+Sensible heat flux (DP4.00002.001)
+All of these data products are solely available within the Bundled Data Products - Eddy Covariance (DP4.00200.001).
+
+A fix has been implemented as of October 29th, 2019 at 2:00 p.m. MDT. All data processed after this time have the correct values. We are currently scheduling data processed before this time for reprocessing.  Once this is complete it will be indicated in the resolution field.
+    Date Range: 2016-12-01 to 2019-10-29
+    Location(s) Affected: All NEON TIS sites
+Resolution Date: 2020-10-01
+Resolution: Affected site-months have been reprocessed and republished
+
+Issue Date: 2018-06-14
+Issue: LI840 IRGA was running validations constantly and draining calibration gases 06/10-06/14/2018. No good measurement data during this time period.
+    Date Range: 2018-06-10 to 2018-06-14
+    Location(s) Affected: D09 NOGP measurement level 1 (000.010), level 2 (000.020), level 3 (000.030) and level 4 (000.040)
+Resolution Date: 2018-09-19
+Resolution: Applied manual flagging
+
+
+ADDITIONAL INFORMATION
+----------------------
+
+
+NEON eddy covariance Level 0 prime (L0’) data files contain eddy covariance turbulent exchange (ECTE) and eddy covariance storage exchange (ECSE) data, in HDF5 format, at the original sensor sampling frequency (e.g., 20 Hz for 3D wind, 40Hz for accelerometer measurements, 1 Hz for CO2/H2O concentration profile measurements). These are the input data which are processed by the eddy4R code to obtain standard L1-4 data products. Additional metadata about the sensor and data, a description of terms, as well as readme info about the HDF5 file are also included. These files are available via an [alternative download method](http://data.neonscience.org/api/v0/documents/EC_L0P_Download_Inst_20181119) utilizing the cURL command line tool or a Python script that is provided with the download instructions. Check the Data Availability Chart before attempting to download L0’ data as these files are only available for months that have already been published on the Data Portal. Please let us know in the ‘contact us’ form if there are any problems downloading the files, and indicate Assignment group: TIS Science Support for fastest routing.  
+
+During nominal operations, we plan to produce and publish the data products in three phases, to accommodate a variety of use cases: the initial near-real-time transition, a science reviewed quality transition, and the epoch yearly transition. The initial near-real-time transition is scheduled to process daily expanded files at a 5-day delay after data collection to accommodate a 9-day centered planar-fit window. If the data has not been received from the field it will attempt to process daily for 30 days, and if not all data is available after this window a force execution is performed populating a HDF5 file with metadata and filling data with NaN’s. The monthly basic file will be produced after all daily files are available, as early as 5 days after the end of the month, and no later than 30 days after the last daily file was initially attempted to be processed. Daily basic files are not produced. After the initial transition, the NEON science team has a one month window to manually flag data that were identified as suspect through field-based problem tracking and resolution tickets or through additional manual data quality analysis. Then, the science-reviewed transition will occur, and the data will be republished to the data portal. The last transition type is part of the yearly epoch versioning, which provides a fully quality assured and quality controlled version of the data using the latest full release of the processing code. This transition is scheduled to occur 18 months after the initial data collection. For additional details please see [NEON.DOC.004571](http://data.neonscience.org/documents).
+
+NEON DATA POLICY AND CITATION GUIDELINES
+----------------------------------------
+
+A citation statement is available in this data product's detail page at
+https://data.neonscience.org/data-products/DP4.00200.001. Please visit https://www.neonscience.org/data-policy for
+more information about NEON's data policy and citation guidelines.
+
+DATA QUALITY AND VERSIONING
+---------------------------
+
+NEON data are initially published with a status of Provisional, in which updates to data and/or processing
+algorithms will occur on an as-needed basis, and query reproducibility cannot be guaranteed. Once data are published
+as part of a Data Release, they are no longer provisional, and are associated with a stable DOI.
+
+To learn more about provisional versus released data, please visit
+https://www.neonscience.org/data-revisions-releases.

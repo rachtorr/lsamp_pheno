@@ -24,13 +24,16 @@
 #     original creation
 ##############################################################################################
 
+install.packages("BiocManager")
+BiocManager::install("rhdf5")
+
 #Site for analysis
 Site <- "WREF"
 
 #Date begin
-dateBgn <- as.Date("2022-09-01")
+dateBgn <- as.Date("2021-10-01")
 #Date end
-dateEnd <- as.Date("2022-09-10")
+dateEnd <- as.Date("2022-09-30")
 
 #Download directory
 DirDnld <- tempdir()
