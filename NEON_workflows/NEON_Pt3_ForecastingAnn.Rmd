@@ -1,38 +1,46 @@
 ---
-title: "Part 3: Forecasting Spring Green up"
+title: "Part 3: Exploring spring transition dates"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(neonUtilities)
+library(lubridate)
+# the package dataRetrieval has a water year function we will use 
+library(dataRetrieval)
+
 ```
 
-# Part 3: Forecast annual values
+In this example, we will plot the relationship between average winter minimum temperatures and spring transition dates. The workflow is similar to the Daily forecasting, but we use annual metrics rather than daily, and join by year. 
 
-## Example: SJER annual patterns
+The steps in this workflow include: 
 
-Daily values may not show a clear pattern - this is where we need to look for context in the literature.
+1. download phenocam transition dates with `phenocamr` package 
+2. aggregate daily temperature to an annual metric
+3. join annual temperature metric and spring transition dates 
+4. explore relationship between temperature and spring transition dates 
+
+## Example 1: SJER annual patterns
+
+We will continue with the steps from part 1 - using GCC90 and weather data from the NEON SJER Site. 
+
+Deciding how to aggregate weather data into annual is an important step in the process. Daily values may not show a clear pattern - this is where we need to look for context in the literature.
 
 The SJER site has an [oak woodland](https://phenocam.nau.edu/webcam/roi/NEON.D17.SJER.DP1.00033/EN_1000/). A study on oak species phenology found that winter precipitation and temperature were significant drivers of the timing of 5 oak species phenophases ([Armstrong-Herniman and Greenwood, 2021](https://bioone.org/journals/madro%c3%b1o/volume-68/issue-4/0024-9637-68.4.450/THE-ROLE-OF-WINTER-PRECIPITATION-AS-A-CLIMATIC-DRIVER-OF/10.3120/0024-9637-68.4.450.full)).
-We can download precipitation data, but to start let's get average winter temperatures, which include the previous year December to the onset year February.
-To get the previous winter, we are first going to create a column for water year, which occur from October to Sept, grouping winter over 1 year.
-
-
+To start let's get average winter temperatures, which include the previous year December to the onset year February.
+To get the previous winter, we are first going to create a column for water year, which occurs from October to Sept, grouping winter over 1 year. Read more about water years [here](https://water.usgs.gov/nwc/explain_data.html).
 
 
 ```{r}
-# fist need to install and load package for water year function
-install.packages("dataRetrieval")
-library(dataRetrieval)
 
-library(tidyverse)
-
+# read in csv from steps 1-2 
 neon_join = read.csv("gcc_neon_join.csv")
 
 ```
 
-    
-
+With the `neon_join` data frame, which contains daily values of GCC90 and temperature, we can aggregate to annual metric of winter temperature by filtering by month and grouping by water year. 
 
 ```{r}
 # winter_temps
@@ -41,9 +49,6 @@ neon_join = read.csv("gcc_neon_join.csv")
 neon_join = neon_join %>%
   mutate(wy=calcWaterYear(datetime),
         month=month(datetime))
-
-# preview
-head(neon_join)
 
 # summarize by winter
 winter_t_df = neon_join %>%
@@ -56,15 +61,217 @@ head(winter_t_df)
 
 ```
 
-Aggregating to annual values, while accounting for NAs, leaves us with only 3 years for data points, not significant enough to make predictions. This is specific to the SJER site, but keep in mind when working on your location.
+Aggregating to annual values, while accounting for NAs, leaves us with only 3 years for data points, not enough to make an interesting plot, or predictions. This is specific to the SJER site, but keep in mind when working on your location.
 
+The next step is to calculate the phenophase transition dates, using the estimation method shown in the [Phenocam access guide](chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj/https://phenocam.nau.edu/education/PhenoCam_Access_Guide.pdf) on page 6.
 
-The next steps would be to calculate the phenophase transition dates, using the estimation method shown in the [Phenocam access guide](chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj/https://phenocam.nau.edu/education/PhenoCam_Access_Guide.pdf) on page 6.
+The R package `phenocamr` includes functions  to simplify this process, and is loaded below. Read more about the phenocamr package [here](https://bluegreen-labs.github.io/phenocamr/).
 
-The R package `phenocamr` includes functions  to simplify this process, and is loaded below.
-
-```{r}
+```{r, warning=FALSE}
 install.packages('phenocamr')
 library(phenocamr)
+```
+
+Moving forward, we will be using a different site, the [Smithsonian Conservation Biology Institute (SCBI)](https://www.neonscience.org/field-sites/scbi), which is a terrestrial field site in the foothills of the Blue Ridge Mountains in Front Royal, Virginia. 
+
+## Example 2: SCBI Site 
+
+SCBI is a temperate and humid site, with deciduous hardwood forests. The dominant species include the tulip tree (*Liriodendron tulipifera*) and Black walnut (*Juglans nigra*).
+
+The next section uses data from the Phenocam network. [See a map of phenocam sites here](https://phenocam.nau.edu/webcam/network/map/). This network contains NEON sites, but is more expansive and contains other sites as well. We will keep the focus on NEON sites here to continue working with NEON weather summary data. 
+
+```{r}
+# set your site - name is slightly different in phenocamr package 
+my_site = "NEON.D02.SCBI.DP1.00033"
+```
+
+We use the function `download_phenocam()`, with the site name as input, and this should download two files to your folder, in phenocam format. The files should end in:
+
+1. "_DB_1000_3day.csv"
+2. "_DB_1000_3rday_transition_dates.csv"
+
+```{r, eval=F}
+
+# download phenocam - this should create 2 csv files 
+phenocamr::download_phenocam(
+  veg_type = "DB", #DB for decid broadleaf, EN for evergreen, default is ALL
+  roi_id = 1000,
+  site = my_site,
+  phenophase = TRUE,
+  out_dir = "." # saves in current working dir
+)
 
 ```
+
+Use `read_phenocam()` to bring in the data structure to R, then select the `$data` object. 
+
+```{r}
+# read in the phenocamr transition dates 
+pheno_td = read_phenocam(paste(my_site,"DB_1000_3day_transition_dates.csv", sep="_"))$data
+
+str(pheno_td)
+
+```
+
+The data frame should include site, veg_type, roi_id, gcc_value, transition dates, and values of GCC at the transition. [Find the full metadata here.](https://phenocam.nau.edu/webcam/tools/summary_file_format/). In our case, we are interested in a `gcc_value` of `gcc_90` and the spring transition, or a `direction` of `rising`. We will use the `filter()` function below to specify this. 
+
+### Visualize transition dates 
+
+Next, following the steps from this [phenocam vignette](https://bluegreen-labs.github.io/phenocamr/articles/phenocamr-vignette.html), we can plot the smoothed GCC90 values with spring and fall 50% transition dates. 
+
+```{r}
+# read phenocam object in 
+neon_site = read_phenocam(paste(my_site,"DB_1000_3day.csv", sep="_"))
+
+df <- expand_phenocam(neon_site) # expand every 3 day to every day 
+
+df <- detect_outliers(df) # detect outliers
+
+df <- smooth_ts(df) # smooth data using AIC 
+
+# fist convert data frame to plot 
+as.data.frame(df$data) %>% 
+  filter(year==2018) %>% 
+  # create a date column with date type 
+  mutate(date = as.Date(date)) %>% 
+  # plot 
+  ggplot() + 
+  geom_line(aes(x=date, y=smooth_gcc_90)) +
+  geom_point(aes(x=date, y=gcc_90), alpha=0.5) +
+  labs(x="Date", y="GCC90") + 
+  # rising "spring" greenup dates 
+  geom_vline(data=pheno_td[pheno_td$direction=="rising" & pheno_td$gcc_value=="gcc_90",], 
+             aes(xintercept=as_date(transition_50)), col="lightgreen", size=1) + 
+  # falling 'autumn' senescence dates 
+  geom_vline(data=pheno_td[pheno_td$direction=="falling" & pheno_td$gcc_value=="gcc_90",], 
+             aes(xintercept=as_date(transition_50)), col="brown", size=1)
+
+
+```
+
+This plot shows the GCC90 values at each point for the year 2018, with a black line to smooth the time series. Green horizontal lines show the spring 50% transition dates, while the brown horizontal lines show the autumn 50% transition dates. 
+
+To see the full time series, you can comment out the line that has `filter(year==2018)`.
+
+### Download SCBI summary weather data 
+
+Here we are repeating the step for downloading weather summary as in part 1, using the `loadByProduct()` function and the ID for [summary weather statistics](https://data.neonscience.org/data-products/DP4.00001.001).
+
+Once you run the below code chunk once, you will have an large list stored in R. Make sure to run the following code chunk to save the dataframe from the list as a CSV file on your local drive. This will make it easier to come back to. 
+
+```{r, eval=F}
+
+# set data ID
+data_id = "DP4.00001.001"
+
+
+# download the summary weather statistics files - for site SJER - check your console, this may take a minute
+
+summary_weather <- loadByProduct(dpID=c(data_id),
+                          site=c("SCBI"),
+                          check.size=F,
+                          progress=F
+                          )
+
+```
+```{r, eval=F}
+
+daily_temp <- summary_weather$wss_daily_temp
+
+write.csv(daily_temp, paste(my_site, "summary_weather_daily_temp.csv", sep="_"))
+
+```
+
+
+## Getting annual values
+
+In order to do this, we need both the Spring green up transition dates and the weather summary to be annual values, in other words each row is a single year. 
+
+### Annual spring transition dates for GCC90
+
+In the code below, we first filter by `direction=="rising"` to get only spring transition dates, as well as the `gcc_90` value. We then use `lubridate` functions to get the year (`year()`) and day of year (`yday()`) when the spring transitions happen. 
+
+This gives each transition date a value between 1-365 for each year. 
+
+```{r}
+
+scbi_gcc = pheno_td %>% filter(direction=="rising",
+                               gcc_value=="gcc_90") %>% 
+  mutate(year = year(transition_10),
+         t10_doy = yday(transition_10),
+         t25_doy = yday(transition_25),
+         t50_doy = yday(transition_50)) %>% 
+  select(year, t10_doy, t25_doy, t50_doy, threshold_10, threshold_25, threshold_50)
+
+
+head(scbi_gcc)
+
+ggplot(scbi_gcc, aes(x=year, y=t10_doy)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_smooth(method='lm') +
+  ggtitle("trend in GCC 90 10% transition day of year")
+
+```
+
+With the `scbi_gcc` data frame, we can create time series to see if the transition dates are happening earlier or later in the year. 
+
+### Average winter minimum temperature 
+
+In this code chunk we take these steps for the `w_temps` dataframe: 
+
+- use `lubridate` functions to create a year and month column 
+- use `calcWaterYear` to create a water year (`wy`) column 
+- use `group_by(wy)` to summarize variables by water year (wy)
+- get the mean of `wssTempTripleMinimum` and save as new var `winter_tmin`
+
+```{r}
+
+daily_temp <- read.csv(paste(my_site, "summary_weather_daily_temp.csv", sep="_"))
+
+w_temps = daily_temp %>% 
+  mutate(year = year(date),
+         wy = calcWaterYear(date),
+         month=month(date)) %>% 
+  filter(month==12 | month<3) %>% 
+  group_by(wy) %>% 
+  summarize(winter_tmin = mean(wssTempTripleMinimum, na.rm=T)) %>% rename(year=wy)
+
+
+head(w_temps)
+
+ggplot(w_temps, aes(x=year, y=winter_tmin)) + geom_point() + geom_line() +
+  ggtitle("Mean daily min. winter temperature (C)")
+
+```
+
+Average winter minimum temperatures increasing in this time period, which suggests there might be a correlation with the decreasing transition dates. 
+
+### Join the temperature and transition dates 
+
+Because both dataframes contain a `year` column, we can join them by year. With the full dataframe, we can create scatter plots to explore the relationship between average winter minimum temperature and spring transition dates. The `inner_join()` function combines columns, matching by year, and keeps all rows that do not contain NA. This leaves us with fewer years to work with, because the range for `scbi_gcc` is 2017-2025, while the range for `w_temps` is 2015-2024. Only the years present in both dataframes will be used. 
+
+If we wanted to include more variables to use in predicting transition dates, we would need to aggregate to annual values like the steps taken in the previous code chunk. 
+
+```{r, warning=F}
+# join data frames, will auto detect the year column in both as overlap
+join_df = inner_join(w_temps, scbi_gcc)
+
+
+# plot temp as driver and day of year as predictor
+join_df %>% 
+  ggplot(aes(x=winter_tmin, y=t50_doy)) + 
+    geom_point() +
+    geom_smooth(method="lm")
+
+```
+
+This plot shows a potential relationship between average winter minimum temperature and day of the year for GCC 90 50% transition. 
+
+# Part 3 Recap:
+
+- in this section we used the `phenocamr` package to download phenocam transition data for a different NEON site, SCBI. 
+- for annual values, we used `lubridate` to get the day of year of the transitions for each year in our time series, and aggregated daily temperature to mean winter 
+- we explore the annual time series of both GCC 90 transition dates and mean winter minimum temperatures using different `geoms`
+- we combined the two data frames with GCC 90 transition dates and temperatures, using `inner_join()` to get only years where there was overlap. 
+- we then plotted the relationship between mean winter min. temperature and 10% GCC 90 day of year. 
