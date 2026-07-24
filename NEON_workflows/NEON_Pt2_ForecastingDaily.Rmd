@@ -3,33 +3,33 @@ title: "Part 2: Forecast daily values for NEON Forecasting Challenge"
 output: html_document
 ---
 
-# Intro 
+# Introduction 
 
-Reference forecasting challenge
+In this part, we follow a workflow for forecasting daily values of GCC. As a reminder, GCC is the green chromatic coordinate from a phenocam. The variable we will look at is `gcc_90` which is the 90th percentile of the GCC within a region of interest. 
 
-https://projects.ecoforecast.org/neon4cast-docs/Phenology.html
+Read more about the NEON Ecological Forecasting Challenge for phenology [here](https://projects.ecoforecast.org/neon4cast-docs/Phenology.html). 
 
-Reminder: GCC is the green chromatic coordinate, and `gcc_90` is the 90th percentile of the gcc within a region of interest.
+In addition to the `tidyverse` package, we will install and load additional packages specific to making a forecast. 
 
-introduce NEON phenology forecasting
-
-and packages
+* `forecast` package provides methods and tools for forecasting time series. Read more [here](https://pkg.robjhyndman.com/forecast/).
+* `scoringRules` package includes functions to evaluate the accuracy of a forecast. Read more [here](https://github.com/FK83/scoringRules). 
 
 
 ```{r}
+# install neon4cast if submitting to the NEON Forecasting Challenge 
 #install.packages("neon4cast")
-install.packages("scoringRules")
-
 #library(neon4cast)
+
+#install.packages("scoringRules")
 library(scoringRules)
 
-install.packages("forecast")
+#install.packages("forecast")
 library(forecast)
 
 library(tidyverse)
 ```
 
-Workflow steps for our forecast:
+## Workflow steps for our forecast:
 
 1. Set a forecast date by defining when it will start. In our case we are selecting a date mid-way through our data set so that we can compare. If submitting to NEON forecasting challenge, set the date as `forecast_date = Sys.Date()` to get a real-time application.
 2. Define our model. In this case we will use a linear model as an example.
@@ -37,9 +37,13 @@ Workflow steps for our forecast:
 4. Optionally, submit to NEON Forecasting challenge  
 
 
+To do this forecast, we assume that Part 1 has been completed, and a CSV file has been saved, named `gcc_neon_join.csv`. If you used a different name, you will want to change the text below. 
+
 ```{r}
 
-neon_join = read.csv("gcc_neon_join.csv")
+csv_file = "gcc_neon_join.csv"
+
+neon_join = read.csv(csv_file)
 
 # date when forecast will start
 forecast_date = lubridate::as_date("2022-01-01")
@@ -56,47 +60,49 @@ fut_pred = neon_join %>%
   filter(date >= forecast_date) %>%
   filter(variable == "gcc_90") %>%
   rename(gcc_90 = observation)
-
-
-# create linear model based on past data
-# try with only mean temperature
-fit_temp_mean <- lm(data=past_model, gcc_90~wssTempTripleMean)
-# try with mean temperature and day of year
-fit_temp_mean_doy <- lm(data=past_model, gcc_90~wssTempTripleMean+doy)
-
-# see summary of model
-summary(fit_temp_mean)
-
-summary(fit_temp_mean_doy)
 ```
 
+Next, we use the `past_model` data frame to create linear models. In this example we compare minimum and maximum temperature. 
 
+```{r}
 
+# create linear model based on past data
+# try with only min temperature
+fit_temp_min <- lm(data=past_model, gcc_90~wssTempTripleMinimum)
 
+# try with max temperature 
+fit_temp_max <- lm(data=past_model, gcc_90~wssTempTripleMaximum)
+
+# see summary of model
+summary(fit_temp_min)
+
+summary(fit_temp_max)
+```
+
+We can then use our linear models, `fit_temp_min` and `fit_temp_max` to apply to the future data frame. 
 
 ```{r, warning=F}
 # fit the model to the 'future' dataframe
 fut_pred <- fut_pred %>%
-  mutate(pred_temp_mean = predict.lm(fit_temp_mean, tibble(wssTempTripleMean)),
-        pred_temp_mean_doy = predict.lm(fit_temp_mean_doy, tibble(wssTempTripleMean, doy))) %>% 
+  mutate(pred_temp_min = predict.lm(fit_temp_min, tibble(wssTempTripleMinimum)),
+        pred_temp_max = predict.lm(fit_temp_max, tibble(wssTempTripleMaximum))) %>% 
   mutate(date = as.Date(date))
 
 # visualize fit for both predictions
 ggplot(fut_pred) +
-  geom_point(aes(x=date, y=gcc_90, col="obs"), col='grey', alpha=0.5) +
-  geom_line(aes(x=date, y=pred_temp_mean, col="temp")) +
-  geom_line(aes(x=date, y=pred_temp_mean_doy, col="temp+doy")) +
+  geom_point(aes(x=date, y=gcc_90, col="obs"), col='lightgreen', alpha=0.5) +
+  geom_line(aes(x=date, y=pred_temp_min, col="Min Temp")) +
+  geom_line(aes(x=date, y=pred_temp_max, col="Max Temp")) +
   labs(col="Model", y="GCC90")
 
 ```
 
+Visually, we can see that our models are very similar, and don't quite capture the highs and lows of GCC_90 (green points). We can apply scores to see how well the models perform below. 
 
 ```{r}
 # score forecast
 # using continuous Ranked probability Score
 
-
-fut_pred_crop = fut_pred %>% filter(!is.na(pred_temp_mean))
 
 # CRPS for normal distribution (most common for linear models)
 # If you have prediction standard deviations/errors
@@ -114,33 +120,23 @@ calculate_crps_point <- function(observed, predicted) {
   crps_norm(y = observed, mean = predicted, sd = residual_sd)
 }
 
-fut_pred_crop$crps = calculate_crps_point(fut_pred_crop$gcc_90, fut_pred_crop$pred_temp_mean_doy)
+fut_pred$crps = calculate_crps_point(fut_pred$gcc_90,
+                                        fut_pred$pred_temp_min)
 
-ggplot(fut_pred_crop) +
+ggplot(fut_pred) +
   geom_point(aes(x=date, y=crps, col="crps")) + ggtitle("Continuous Ranked Probability Score")
 
 ```
     
-
-
+In addition to CRPS, we can use the `accuracy()` function on both models to calculate scores, including Mean Error (ME), Root Mean Squared Error (RMSE), Mean Absolute Error (MSE), Mean Percentage Error (MPE), and Mean Absolute Percentage Error (MAPE)
 
 ```{r}
 # use forecast package to get accuracy scores
-accuracy(fut_pred$pred_temp_mean, fut_pred$gcc_90)
-accuracy(fut_pred$pred_temp_mean_doy, fut_pred$gcc_90)
+accuracy(fut_pred$pred_temp_min, fut_pred$gcc_90)
+accuracy(fut_pred$pred_temp_max, fut_pred$gcc_90)
 ```
 
+## Submit to forecasting challenging
 
-
-
-Submit to forecasting challenging
-
-
-
-```{r}
-# name your team / model
-
-# connect to neon4cast
-
-# submit
-```
+You may optionally want to submit your forecast to the NEON challenge to see how well it performs moving forward. 
+See the steps on how to do this at this link: [How to submit a forecast](https://projects.ecoforecast.org/neon4cast-ci/instructions.html). 

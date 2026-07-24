@@ -233,7 +233,7 @@ First we are installing and loading the package.
 
 ```{r, warning=F}
 # run this first to install
-install.packages("neonUtilities")
+#install.packages("neonUtilities")
 
 # load package
 
@@ -249,8 +249,9 @@ The information needed to load the product, with the function `loadByProduct()` 
 - site: we have already created the variable `my_site`
 - optionally, startdate and enddate. In the code below, objects for `start` and `end` are created based on availability from our site's GCC_90 dataframe.
 
-💻 Once you run the next code cell, check below or in your console, there will be a message: "Continuing will download files totaling approximately 1.333577 MB. Do you want to proceed y/n:", continue by typing `y`.
+💻 Note: as of June 2026, NEON requires an API token to download data.Set up your API token [here](https://www.neonscience.org/resources/learning-hub/tutorials/api-token-setup). This should be a string that you save on your machine, then include this additional parameter to the `loadByProduct()` function: `token="yourAPIkey"`
 
+In this case I have saved my NEON API key in my `.Renviron` file, and then I read it in with `Sys.getenv("NEON_API_KEY")`. See an example of doing this [here](https://laurenilano.com/posts/api-keys/).
 
 ```{r}
 # this may take a few minutes to download data!
@@ -263,6 +264,7 @@ data_id = "DP4.00001.001"
 start = format(site_targets$datetime[1], "%Y-%m")
 end = format(site_targets$datetime[nrow(site_targets)], "%Y-%m")
 
+
 # download the summary weather statistics files - for site SJER - check your console, this may take a minute
 
 summary_weather <- loadByProduct(dpID=c(data_id),
@@ -270,7 +272,8 @@ summary_weather <- loadByProduct(dpID=c(data_id),
                           startdate=start,
                           enddate=end,
                           check.size=F,
-                          progress=F
+                          progress=F,
+                          token=Sys.getenv("NEON_API_KEY")
                           )
 
 # the format of this download is a list that contains metadata and data frames
@@ -368,7 +371,7 @@ I want to see a plot of both temperature and GCC. To do this, I am loading and u
 
 ```{r, warning=F}
 # get the package patchwork
-install.packages('patchwork')
+#install.packages('patchwork')
 library(patchwork)
 
 
